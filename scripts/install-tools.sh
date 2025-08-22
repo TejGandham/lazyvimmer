@@ -5,6 +5,7 @@ set -euo pipefail
 
 log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1" >&2; }
+log_warn() { echo "[WARN] $1" >&2; }
 
 # Install Lazygit
 install_lazygit() {
@@ -99,13 +100,31 @@ install_nodejs_claude() {
         sudo npm install -g @anthropic-ai/claude-code
     fi
     
-    # Verify Claude Code installation
+    # Find where npm installed global packages
+    NPM_PREFIX=$(npm config get prefix)
+    log_info "NPM global prefix: $NPM_PREFIX"
+    
+    # Add npm bin to PATH if not already there
+    export PATH="$NPM_PREFIX/bin:$PATH"
+    
+    # Verify Claude Code installation - check multiple possible command names
     if command -v claude-code >/dev/null 2>&1; then
         CLAUDE_VERSION=$(claude-code --version 2>/dev/null || echo "version unknown")
         log_info "Claude Code CLI installed successfully: $CLAUDE_VERSION"
+    elif command -v claude >/dev/null 2>&1; then
+        CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "version unknown")
+        log_info "Claude Code CLI installed successfully (as 'claude'): $CLAUDE_VERSION"
+    elif [ -f "$NPM_PREFIX/bin/claude-code" ]; then
+        log_info "Claude Code CLI installed at $NPM_PREFIX/bin/claude-code"
+        log_info "Add $NPM_PREFIX/bin to your PATH to use it"
+    elif [ -f "$NPM_PREFIX/bin/claude" ]; then
+        log_info "Claude Code CLI installed at $NPM_PREFIX/bin/claude"
+        log_info "Add $NPM_PREFIX/bin to your PATH to use it"
     else
         log_error "Claude Code CLI installation verification failed"
-        log_warn "You can install it manually later with: npm install -g @anthropic-ai/claude-code"
+        log_warn "Package installed but command not found in PATH"
+        log_warn "Try running: npm list -g @anthropic-ai/claude-code"
+        log_warn "You may need to add npm bin directory to PATH"
         return 1
     fi
 }
