@@ -72,7 +72,7 @@ chmod +x create-lazyvim-ct.sh
 | `--memory` | Memory in MB | 4096 |
 | `--cores` | CPU cores | 2 |
 | `--disk` | Disk size in GB | 20 |
-| `--storage` | Storage location | local-lvm |
+| `--storage` | Storage location | local-zfs |
 | `--bridge` | Network bridge | vmbr0 |
 | `--ip` | IP address or 'dhcp' | dhcp |
 | `--gateway` | Gateway IP | (none) |

@@ -1,182 +1,142 @@
-# LazyVim Devbox
+# LazyVimmer - Instant Dev Environment
 
-A comprehensive development environment with Neovim, LazyVim, and modern development tools. Works in both Docker containers and Proxmox CTs/VMs.
-
-## Features
-
-- 🚀 Neovim 0.10.2 with LazyVim configuration
-- 🐍 Python development (pyright, ruff, black, debugpy)
-- 📦 TypeScript/JavaScript support (tsserver, eslint, prettier)
-- 🎨 Lazygit integration
-- 🤖 Claude Code CLI
-- ⚡ uv - Fast Python package manager
-- 🔧 Architecture support (amd64/arm64)
+Spin up a fully configured Neovim development environment in seconds. Works on Proxmox containers and Docker.
 
 ## Quick Start
 
-### Command Line Options
-
-The setup script supports the following options:
-- `--name NAME` - Set container name (useful for Proxmox CTs)
-- `--create-user USER` - Create a new user (default: dev)
-- `--setup-ssh` - Configure SSH server
-- `--workspace DIR` - Set workspace directory (default: /workspace)
-- `--skip-lazyvim` - Skip LazyVim installation
-- `--unattended` - Run without prompts (default: true)
-
-### Option 1: Docker (Original Method)
-
+### Proxmox (Recommended)
 ```bash
-# Setup SSH keys
-mkdir -p ssh && chmod 700 ssh
-cat ~/.ssh/id_rsa.pub >> ssh/authorized_keys && chmod 600 ssh/authorized_keys
-
-# Build and run
-docker compose build --no-cache devbox
-docker compose up -d devbox
-
-# Connect
-ssh dev@localhost -p 2222
+# On your Proxmox host:
+bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 ```
 
-Toggle LazyVim setup by setting `RUN_LAZYVIM_SETUP` in docker-compose.yml:
-- First run: Set to `1` 
-- Subsequent runs: Set to `0`
+That's it! In 2-3 minutes you'll have a container with:
+- Neovim + LazyVim fully configured
+- Python & TypeScript development tools
+- SSH access as 'dev' user
+- Claude Code CLI installed
+- 4GB RAM, 2 CPU cores, 20GB disk
 
-### Option 2: Proxmox CT / Native Ubuntu
-
-#### One-liner Installation
-
-```bash
-# Install for current user
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/setup.sh | bash
-
-# Or create a dev user with custom name
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/setup.sh | bash -s -- --create-user dev --name my-devbox
-```
-
-#### Clone and Install
-
+### Docker
 ```bash
 git clone https://github.com/TejGandham/lazyvimmer.git
 cd lazyvimmer
-./setup.sh
+mkdir -p ssh && cp ~/.ssh/id_rsa.pub ssh/authorized_keys
+docker compose up -d --build
+ssh dev@localhost -p 2222
 ```
 
-#### Installation Options
+## What's Included
 
-```bash
-./setup.sh [OPTIONS]
-
-Options:
-  --user USER         Install for specified user (default: current user)
-  --create-user USER  Create new user and install (default: dev)
-  --setup-ssh         Configure SSH server
-  --workspace DIR     Set workspace directory (default: /workspace)
-  --skip-lazyvim      Skip LazyVim installation
-  --help              Show help message
-```
-
-## Project Structure
-
-```
-lazyvimmer/
-├── setup.sh                 # Main installer (auto-detects environment)
-├── Dockerfile              # Docker container definition
-├── docker-compose.yml      # Docker orchestration
-├── docker/                 # Docker-specific files
-│   ├── entrypoint.sh      # Container startup script
-│   └── install_lazyvim.sh # LazyVim installer (shared)
-├── plugins/               # Neovim plugin configurations
-│   ├── disable.lua       # Disabled default plugins
-│   ├── lazygit.lua      # Lazygit integration
-│   ├── python.lua       # Python development
-│   └── ts.lua           # TypeScript/JavaScript
-├── scripts/              # Installation scripts
-│   ├── install-base.sh  # Base packages
-│   ├── install-neovim.sh # Neovim installation
-│   ├── install-tools.sh  # Dev tools (lazygit, node, claude, uv)
-│   └── setup-user.sh    # User creation and SSH
-└── workspace/           # Shared workspace directory
-```
-
-## Neovim Key Bindings
-
-### LazyGit
-- `<leader>gg` - Open LazyGit
-- `<leader>gG` - Open LazyGit for current file
-- `<leader>gf` - LazyGit filter
-- `<leader>gF` - LazyGit filter for current file
-
-### General LazyVim
-- `<leader>` - Show which-key menu
-- `<leader>ff` - Find files
-- `<leader>fg` - Live grep
-- `<leader>fb` - Browse buffers
-
-## Environment Variables
-
-Control installation behavior:
-
-```bash
-INSTALL_USER=dev           # Target user for installation
-CREATE_USER=false          # Create new user
-SETUP_SSH=false           # Configure SSH server
-WORKSPACE_DIR=/workspace  # Workspace directory
-SKIP_LAZYVIM=false       # Skip LazyVim setup
-```
+- **Neovim 0.10.2** with LazyVim configuration
+- **Python**: pyright, ruff, black, debugpy
+- **TypeScript/JavaScript**: tsserver, eslint, prettier, debugging
+- **Tools**: lazygit, ripgrep, fd, uv, Claude Code CLI
+- **User**: 'dev' with sudo access
+- **SSH**: Key-based authentication
 
 ## Customization
 
-### Adding Language Support
+### Proxmox Options
 
-Create a new plugin file in `plugins/` directory:
+```bash
+# Custom resources:
+export CT_MEMORY=8192  # 8GB RAM
+export CT_CORES=4      # 4 CPU cores
+export CT_DISK=50      # 50GB disk
 
-```lua
--- plugins/rust.lua
-return {
-  {
-    "williamboman/mason-lspconfig.nvim",
-    opts = function(_, opts)
-      opts.ensure_installed = opts.ensure_installed or {}
-      vim.list_extend(opts.ensure_installed, { "rust_analyzer" })
-    end,
-  },
-}
+bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 ```
 
-### Modifying Tools
+### Direct Script Options
 
-Edit scripts in `scripts/` directory to add or modify tool installations.
+```bash
+./proxmox/create-lazyvim-ct.sh \
+  --name my-devbox \
+  --memory 8192 \
+  --cores 4 \
+  --disk 50 \
+  --ip 192.168.1.100/24 \
+  --gateway 192.168.1.1
+```
+
+## Available Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name` | Container hostname | lazyvimmer |
+| `--memory` | Memory in MB | 4096 |
+| `--cores` | CPU cores | 2 |
+| `--disk` | Disk size in GB | 20 |
+| `--ip` | IP address or 'dhcp' | dhcp |
+| `--gateway` | Gateway IP | (none) |
+| `--force` | Recreate if exists | false |
+
+## Usage
+
+```bash
+# SSH into your new container (IP shown after creation)
+ssh dev@<container-ip>
+
+# Start coding
+cd /workspace
+nvim
+```
+
+## Key Bindings
+
+- `<leader>` = space
+- `<leader>gg` - Open lazygit
+- `<leader>ff` - Find files
+- `<leader>fg` - Find text
+- `gd` - Go to definition
+- `K` - Show documentation
+
+## Idempotent & Safe
+
+The script is idempotent - running it multiple times with the same name won't create duplicates:
+
+```bash
+# First run: Creates container
+bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
+
+# Second run: Shows existing container info
+bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
+
+# Force recreate with --force
+./proxmox/create-lazyvim-ct.sh --name my-devbox --force
+```
+
+## Requirements
+
+- **Proxmox**: VE 7.x or 8.x with root access
+- **Docker**: Docker and Docker Compose (for Docker mode)
+- Internet connectivity for package downloads
 
 ## Troubleshooting
 
-### Permission Issues
-If you encounter permission errors, ensure you're running as root or with sudo:
 ```bash
-sudo ./setup.sh --create-user dev
+# Check container status
+pct status <ctid>
+
+# View setup logs
+pct exec <ctid> -- tail -f /var/log/lazyvim-setup.log
+
+# Get container IP
+pct exec <ctid> -- ip addr show eth0
+
+# Manual setup if needed
+pct enter <ctid>
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/setup.sh | bash
 ```
 
-### Architecture Detection
-The installer automatically detects amd64/arm64. If detection fails, check:
-```bash
-dpkg --print-architecture
-```
+## Security Notes
 
-### LazyVim Already Installed
-The installer checks for existing installations. To force reinstall:
-```bash
-rm ~/.config/nvim/.lazyvim_installed
-./setup.sh
-```
+- Container runs unprivileged with nesting enabled
+- 'dev' user has passwordless sudo (for development convenience)
+- Root password is randomly generated and displayed once
+- SSH password authentication disabled by default
 
-## Contributing
+## More Documentation
 
-1. Fork the repository
-2. Create your feature branch
-3. Test in both Docker and native environments
-4. Submit a pull request
-
-## License
-
-MIT
+Detailed documentation and advanced usage: [proxmox/README.md](proxmox/README.md)
