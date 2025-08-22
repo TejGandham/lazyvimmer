@@ -134,30 +134,36 @@ if [ -n "$GITHUB_USERNAME" ]; then
 fi
 
 # Download Ubuntu template if not exists
-# First, let's check what templates are available
-log_info "Checking for Ubuntu 24.04 templates..."
+log_info "Updating template list..."
 pveam update
+
+log_info "Checking for Ubuntu 24.04 templates..."
+# Debug: show what we're finding
 AVAILABLE_TEMPLATES=$(pveam available | grep -i "ubuntu-24" || true)
 
 if [ -z "$AVAILABLE_TEMPLATES" ]; then
     log_error "Ubuntu 24.04 template not found in Proxmox repository"
+    log_info "Available Ubuntu templates:"
+    pveam available | grep -i ubuntu | head -5 || true
     log_error "Please ensure your Proxmox repositories are configured correctly"
     exit 1
 fi
 
-# Extract the actual template name
+# Extract the actual template name (column 2 from pveam available output)
 TEMPLATE_NAME=$(echo "$AVAILABLE_TEMPLATES" | head -1 | awk '{print $2}')
 
 if [ -z "$TEMPLATE_NAME" ]; then
     log_error "Could not parse Ubuntu 24.04 template name"
+    log_info "Raw output: $AVAILABLE_TEMPLATES"
     exit 1
 fi
+
+log_info "Found template: $TEMPLATE_NAME"
 
 TEMPLATE_PATH="/var/lib/vz/template/cache/${TEMPLATE_NAME}"
 
 if [ ! -f "$TEMPLATE_PATH" ]; then
     log_info "Downloading template: $TEMPLATE_NAME"
-    pveam update
     pveam download local "$TEMPLATE_NAME"
 else
     log_info "Using existing template: $TEMPLATE_NAME"
