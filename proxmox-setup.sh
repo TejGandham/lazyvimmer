@@ -135,21 +135,21 @@ fi
 
 # Download Ubuntu template if not exists
 # First, let's check what templates are available
-log_info "Checking available Ubuntu templates..."
+log_info "Checking for Ubuntu 24.04 templates..."
+pveam update
 AVAILABLE_TEMPLATES=$(pveam available | grep -i "ubuntu-24" || true)
 
 if [ -z "$AVAILABLE_TEMPLATES" ]; then
-    # Try with Ubuntu 22.04 if 24.04 is not available
-    log_warn "Ubuntu 24.04 not found, trying Ubuntu 22.04..."
-    UBUNTU_VERSION="22.04"
-    AVAILABLE_TEMPLATES=$(pveam available | grep -i "ubuntu-22" || true)
+    log_error "Ubuntu 24.04 template not found in Proxmox repository"
+    log_error "Please ensure your Proxmox repositories are configured correctly"
+    exit 1
 fi
 
 # Extract the actual template name
 TEMPLATE_NAME=$(echo "$AVAILABLE_TEMPLATES" | head -1 | awk '{print $2}')
 
 if [ -z "$TEMPLATE_NAME" ]; then
-    log_error "No Ubuntu templates found. Please check your Proxmox repository configuration."
+    log_error "Could not parse Ubuntu 24.04 template name"
     exit 1
 fi
 
