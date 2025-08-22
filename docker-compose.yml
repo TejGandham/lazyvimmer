@@ -1,0 +1,19 @@
+services:
+  devbox:
+    build: .
+    container_name: devbox
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    environment:
+      RUN_LAZYVIM_SETUP: "0"   # first run; flip to "0" after bootstrap
+    volumes:
+      - ./workspace:/workspace
+      - ./ssh:/home/dev/.ssh
+      - nvim-config:/home/dev/.config/nvim
+      - nvim-data:/home/dev/.local/share/nvim
+      - nvim-state:/home/dev/.local/state
+volumes:
+  nvim-config:
+  nvim-data:
+  nvim-state:
