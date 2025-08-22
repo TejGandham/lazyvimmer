@@ -49,16 +49,36 @@ if [ "$DOWNLOAD_SUCCESS" = "false" ]; then
 fi
 
 # Extract and install
-log_info "Extracting Neovim..."
-if [ "$EUID" -eq 0 ]; then
-    tar -xzf /tmp/nvim.tar.gz -C /opt
-    DIR="$(tar -tzf /tmp/nvim.tar.gz | head -1 | cut -d/ -f1)"
-    ln -sf "/opt/${DIR}/bin/nvim" /usr/local/bin/nvim
-else
-    sudo tar -xzf /tmp/nvim.tar.gz -C /opt
-    DIR="$(tar -tzf /tmp/nvim.tar.gz | head -1 | cut -d/ -f1)"
-    sudo ln -sf "/opt/${DIR}/bin/nvim" /usr/local/bin/nvim
+log_info "Extracting Neovim to /opt..."
+
+# Create /opt if it doesn't exist
+if [ ! -d /opt ]; then
+    if [ "$EUID" -eq 0 ]; then
+        mkdir -p /opt
+    else
+        sudo mkdir -p /opt
+    fi
 fi
+
+# Extract with verbose output for debugging
+if [ "$EUID" -eq 0 ]; then
+    tar -xzvf /tmp/nvim.tar.gz -C /opt 2>&1 | head -20
+    # Neovim archive structure is predictable: nvim-linux64 or nvim-linux-arm64
+    if [ "$ARCH" = "amd64" ]; then
+        ln -sf /opt/nvim-linux64/bin/nvim /usr/local/bin/nvim
+    else
+        ln -sf /opt/nvim-linux-arm64/bin/nvim /usr/local/bin/nvim
+    fi
+else
+    sudo tar -xzvf /tmp/nvim.tar.gz -C /opt 2>&1 | head -20
+    if [ "$ARCH" = "amd64" ]; then
+        sudo ln -sf /opt/nvim-linux64/bin/nvim /usr/local/bin/nvim
+    else
+        sudo ln -sf /opt/nvim-linux-arm64/bin/nvim /usr/local/bin/nvim
+    fi
+fi
+
+log_info "Neovim extracted successfully"
 
 # Cleanup
 rm /tmp/nvim.tar.gz
