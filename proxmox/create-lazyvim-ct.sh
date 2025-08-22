@@ -34,6 +34,7 @@ SSH_PUBLIC_KEY="${SSH_PUBLIC_KEY:-}"
 SSH_KEY_FILE="${SSH_KEY_FILE:-$HOME/.ssh/id_rsa.pub}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-22.04}"
 START_AFTER_CREATE="${START_AFTER_CREATE:-true}"
+FORCE_RECREATE="${FORCE_RECREATE:-false}"
 
 # Function to find next available CTID
 find_next_ctid() {
@@ -49,6 +50,14 @@ find_next_ctid() {
     
     log_error "No available CTID found between $start_id and $max_id"
     return 1
+}
+
+# Function to check if CT with name exists
+find_ct_by_name() {
+    local name="$1"
+    # pct list shows VMID, Status, and Name
+    local existing_id=$(pct list 2>/dev/null | tail -n +2 | awk -v name="$name" '$3 == name {print $1}')
+    echo "$existing_id"
 }
 
 # Function to download Ubuntu template
@@ -295,6 +304,39 @@ main() {
     log_info "Creating Ubuntu ${UBUNTU_VERSION} container with LazyVim development environment"
     echo
     
+    # Check if CT with same name already exists
+    EXISTING_CTID=$(find_ct_by_name "$CT_NAME")
+    if [ -n "$EXISTING_CTID" ]; then
+        if [ "$FORCE_RECREATE" = "true" ]; then
+            log_warn "CT '$CT_NAME' already exists with ID ${EXISTING_CTID}. Force recreate enabled."
+            log_step "Destroying existing CT ${EXISTING_CTID}..."
+            pct stop ${EXISTING_CTID} 2>/dev/null || true
+            pct destroy ${EXISTING_CTID} --purge
+            log_info "Existing CT destroyed"
+        else
+            log_info "CT '$CT_NAME' already exists with ID ${EXISTING_CTID}"
+            log_info "Container is ready to use!"
+            
+            # Check if it's running
+            if pct status ${EXISTING_CTID} | grep -q "running"; then
+                log_info "Status: Running"
+                # Try to get IP
+                CT_IP=$(pct exec ${EXISTING_CTID} -- ip -4 addr show eth0 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1)
+                if [ -n "$CT_IP" ]; then
+                    log_info "IP Address: ${CT_IP}"
+                    log_info "SSH Command: ssh dev@${CT_IP}"
+                fi
+            else
+                log_info "Status: Stopped"
+                log_info "Start with: pct start ${EXISTING_CTID}"
+            fi
+            
+            log_info ""
+            log_info "To recreate, use: $0 --force"
+            exit 0
+        fi
+    fi
+    
     # Find or use provided CTID
     if [ -z "$CTID" ]; then
         CTID=$(find_next_ctid 200 299)
@@ -410,6 +452,10 @@ while [[ $# -gt 0 ]]; do
             START_AFTER_CREATE=false
             shift
             ;;
+        --force)
+            FORCE_RECREATE=true
+            shift
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -427,6 +473,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --ssh-key-file FILE SSH public key file (default: ~/.ssh/id_rsa.pub)"
             echo "  --github-user USER  GitHub username for setup script (default: TejGandham)"
             echo "  --no-start          Don't start container after creation"
+            echo "  --force             Force recreate if container with same name exists"
             echo "  --help              Show this help message"
             echo ""
             echo "Examples:"

@@ -12,6 +12,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/p
 CT_NAME=my-dev-container bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 ```
 
+**Note:** The script is idempotent! If a container with the same name already exists, it will show its status instead of creating a new one. Use `--force` to recreate.
+
 This creates a fully configured Ubuntu 22.04 CT with:
 - Neovim 0.10.2 + LazyVim
 - Python & TypeScript/JavaScript development tools
@@ -78,6 +80,7 @@ chmod +x create-lazyvim-ct.sh
 | `--ssh-key-file` | SSH public key file | ~/.ssh/id_rsa.pub |
 | `--github-user` | GitHub username | TejGandham |
 | `--no-start` | Don't start after creation | false |
+| `--force` | Force recreate existing container | false |
 
 ## Usage Workflow
 
@@ -173,6 +176,23 @@ To modify what gets installed, edit these files before deployment:
 3. Modify installation scripts as needed
 4. Run the one-liner with your GitHub username
 
+## Idempotency Features
+
+The script supports idempotent operations:
+
+1. **Check for existing container**: If a container with the same name exists, it will:
+   - Show the container status (running/stopped)
+   - Display the IP address if running
+   - Provide the SSH command to connect
+   - Exit without creating a duplicate
+
+2. **Force recreate**: Use `--force` to destroy and recreate an existing container:
+   ```bash
+   ./create-lazyvim-ct.sh --name my-dev --force
+   ```
+
+3. **Safe re-runs**: Running the script multiple times with the same name won't create duplicates
+
 ## Complete Example
 
 ```bash
@@ -181,10 +201,15 @@ export GITHUB_USER="myusername"
 export CT_NAME="dev-workspace"
 export CT_MEMORY=8192
 
-# Deploy
+# First run - creates the container
 bash <(curl -fsSL https://raw.githubusercontent.com/${GITHUB_USER}/lazyvimmer/main/proxmox/deploy-ct.sh)
 
-# Wait for "Container Ready" message
+# Second run - shows existing container info
+bash <(curl -fsSL https://raw.githubusercontent.com/${GITHUB_USER}/lazyvimmer/main/proxmox/deploy-ct.sh)
+
+# Force recreate
+./create-lazyvim-ct.sh --name dev-workspace --force
+
 # SSH in with the displayed IP
 ssh dev@10.0.0.123
 
