@@ -44,7 +44,11 @@ run_script() {
         source "$SCRIPT_DIR/$script_name" "$@"
     else
         log_info "Downloading and running $script_name"
-        bash <(curl -fsSL "$GITHUB_RAW_URL/$script_name") "$@"
+        local temp_script="/tmp/$(basename "$script_name")_$$.sh"
+        curl -fsSL "$GITHUB_RAW_URL/$script_name" -o "$temp_script"
+        chmod +x "$temp_script"
+        bash "$temp_script" "$@"
+        rm -f "$temp_script"
     fi
 }
 
@@ -212,12 +216,20 @@ main() {
     if [ "$SKIP_LAZYVIM" = "false" ]; then
         log_info "Installing LazyVim..."
         
-        # Download and run the LazyVim installer as the target user
+        # Download the LazyVim installer to a temp file first
+        LAZYVIM_INSTALLER="/tmp/install_lazyvim_$$.sh"
+        curl -fsSL "$GITHUB_RAW_URL/docker/install_lazyvim.sh" -o "$LAZYVIM_INSTALLER"
+        chmod +x "$LAZYVIM_INSTALLER"
+        
+        # Run the installer as the target user
         if [ "$INSTALL_USER" = "root" ]; then
-            bash <(curl -fsSL "$GITHUB_RAW_URL/docker/install_lazyvim.sh")
+            "$LAZYVIM_INSTALLER"
         else
-            sudo -u "$INSTALL_USER" -H bash <(curl -fsSL "$GITHUB_RAW_URL/docker/install_lazyvim.sh")
+            sudo -u "$INSTALL_USER" -H "$LAZYVIM_INSTALLER"
         fi
+        
+        # Cleanup
+        rm -f "$LAZYVIM_INSTALLER"
     fi
     
     # Setup SSH if requested
