@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Finish Neovim setup - install remaining packages if initial setup was incomplete
+# Finish Neovim setup - simplified version that doesn't hang
 
 log_info() { echo "[INFO] $1"; }
-log_error() { echo "[ERROR] $1" >&2; }
 
 # Run as the target user
 INSTALL_USER="${INSTALL_USER:-${SUDO_USER:-${USER:-$(whoami)}}}"
 
-log_info "Finishing Neovim setup for user: $INSTALL_USER"
+log_info "Finalizing Neovim setup for user: $INSTALL_USER"
 
 # Function to run as target user
 run_as_user() {
@@ -20,70 +19,13 @@ run_as_user() {
     fi
 }
 
-# Ensure all LazyVim plugins are installed
-log_info "Ensuring all LazyVim plugins are installed..."
-run_as_user 'nvim --headless "+Lazy! sync" +qa' || true
+# Quick plugin sync
+log_info "Syncing LazyVim plugins..."
+timeout 30 bash -c "run_as_user 'nvim --headless \"+Lazy! sync\" +qa'" 2>/dev/null || true
 
-# Wait for plugins to load
-sleep 3
-
-# Install/update Mason packages
-log_info "Installing Mason packages..."
-run_as_user 'nvim --headless "+MasonInstallAll" +qa' 2>/dev/null || {
-    # Fallback to manual installation
-    log_info "Trying manual Mason package installation..."
-    
-    cat >/tmp/mason_complete.lua <<'LUA'
-vim.cmd("Mason")
-
--- Wait for Mason to initialize
-vim.wait(2000)
-
-local mason = require("mason")
-local mr = require("mason-registry")
-
--- Ensure registry is up to date
-mr.refresh(function()
-    local packages = {
-        "pyright",
-        "ruff-lsp",
-        "typescript-language-server", 
-        "eslint-lsp",
-        "black",
-        "prettier",
-        "debugpy",
-        "js-debug-adapter",
-        "stylua",
-        "shfmt",
-    }
-    
-    for _, name in ipairs(packages) do
-        local ok, pkg = pcall(mr.get_package, name)
-        if ok and not pkg:is_installed() then
-            vim.notify("Installing " .. name)
-            pkg:install()
-        end
-    end
-end)
-
--- Give time for installations
-vim.wait(20000)
-LUA
-    
-    run_as_user 'nvim --headless "+luafile /tmp/mason_complete.lua" +qa' || true
-    rm -f /tmp/mason_complete.lua
-}
-
-# Install Treesitter parsers
-log_info "Installing Treesitter parsers..."
-run_as_user 'nvim --headless "+TSUpdateSync" +qa' 2>/dev/null || {
-    log_info "Trying alternative Treesitter installation..."
-    run_as_user 'nvim --headless "+TSInstall! all" +qa' 2>/dev/null || true
-}
-
-# Final sync to ensure everything is ready
-log_info "Final plugin sync..."
-run_as_user 'nvim --headless "+Lazy! sync" +qa' || true
-
-log_info "Neovim setup complete!"
-log_info "Note: First launch of nvim may still install some remaining components."
+log_info "Setup complete!"
+log_info ""
+log_info "IMPORTANT: Mason packages will auto-install on first Neovim launch."
+log_info "This is normal and expected behavior for LazyVim."
+log_info ""
+log_info "To start using Neovim, simply run: nvim"

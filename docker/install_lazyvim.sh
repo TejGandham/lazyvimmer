@@ -54,71 +54,57 @@ mkdir -p "$PLUG_DIR"
 echo "Syncing LazyVim plugins..."
 nvim --headless "+lua require('lazy').sync({ wait = true, show = false })" +qa 2>/dev/null || true
 
-# Wait a bit for plugins to settle
-sleep 2
+# The simplified approach - let LazyVim handle the rest on first real launch
+echo "Configuring LSP servers and tools..."
 
-# Update Mason registry first
-echo "Updating Mason registry..."
-nvim --headless "+lua require('mason-registry').refresh()" +qa 2>/dev/null || true
-
-# Install Mason packages with better error handling
-echo "Installing LSP servers and tools..."
-cat >/tmp/mason_install.lua <<'LUA'
-local success, mason = pcall(require, "mason")
-if not success then
-  print("Mason not found, skipping package installation")
-  return
-end
-
-local mr = require("mason-registry")
-
--- Refresh registry
-mr.refresh()
-
-local packages = {
-  "pyright",
-  "ruff-lsp", 
-  "typescript-language-server",
-  "eslint-lsp",
-  "black",
-  "prettier",
-  "debugpy",
-  "js-debug-adapter",
-  "stylua",
-  "shfmt",
+# Create a custom config to ensure packages are marked for installation
+cat > "$PLUG_DIR/ensure-mason.lua" <<'LUA'
+return {
+  {
+    "williamboman/mason.nvim",
+    opts = function(_, opts)
+      opts.ensure_installed = opts.ensure_installed or {}
+      vim.list_extend(opts.ensure_installed, {
+        "stylua",
+        "shfmt",
+      })
+    end,
+  },
+  {
+    "williamboman/mason-lspconfig.nvim",
+    opts = function(_, opts)
+      opts.ensure_installed = opts.ensure_installed or {}
+      vim.list_extend(opts.ensure_installed, {
+        "pyright",
+        "ruff_lsp",
+        "tsserver",
+        "eslint",
+      })
+    end,
+  },
+  {
+    "jay-babu/mason-nvim-dap.nvim",
+    opts = function(_, opts)
+      opts.ensure_installed = opts.ensure_installed or {}
+      vim.list_extend(opts.ensure_installed, {
+        "debugpy",
+        "js-debug-adapter",
+      })
+    end,
+  },
+  {
+    "stevearc/conform.nvim",
+    opts = function(_, opts)
+      opts.formatters_by_ft = opts.formatters_by_ft or {}
+      opts.formatters_by_ft.python = { "black" }
+      opts.formatters_by_ft.javascript = { "prettier" }
+      opts.formatters_by_ft.typescript = { "prettier" }
+    end,
+  },
 }
-
-for _, pkg_name in ipairs(packages) do
-  local ok, pkg = pcall(mr.get_package, pkg_name)
-  if ok then
-    if not pkg:is_installed() then
-      print("Installing " .. pkg_name .. "...")
-      pkg:install()
-    else
-      print(pkg_name .. " already installed")
-    end
-  else
-    print("Package not found: " .. pkg_name)
-  end
-end
-
--- Wait for installations to complete
-vim.wait(30000, function()
-  for _, pkg_name in ipairs(packages) do
-    local ok, pkg = pcall(mr.get_package, pkg_name)
-    if ok and pkg:is_installed() == false then
-      return false
-    end
-  end
-  return true
-end, 1000)
 LUA
 
-nvim --headless "+luafile /tmp/mason_install.lua" +qa 2>/dev/null || true
-
-# Install treesitter parsers
-echo "Installing Treesitter parsers..."
-nvim --headless "+TSUpdateSync" +qa 2>/dev/null || true
+echo "Initial setup complete. Packages will install on first Neovim launch."
 
 touch "$NVIM_DIR/.lazyvim_installed"
 '
