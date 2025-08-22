@@ -60,9 +60,9 @@ if [ ! -d /opt ]; then
     fi
 fi
 
-# Extract with verbose output for debugging
+# Extract quietly with progress indicator
 if [ "$EUID" -eq 0 ]; then
-    tar -xzvf /tmp/nvim.tar.gz -C /opt 2>&1 | head -20
+    tar -xzf /tmp/nvim.tar.gz -C /opt
     # Neovim archive structure is predictable: nvim-linux64 or nvim-linux-arm64
     if [ "$ARCH" = "amd64" ]; then
         ln -sf /opt/nvim-linux64/bin/nvim /usr/local/bin/nvim
@@ -70,7 +70,7 @@ if [ "$EUID" -eq 0 ]; then
         ln -sf /opt/nvim-linux-arm64/bin/nvim /usr/local/bin/nvim
     fi
 else
-    sudo tar -xzvf /tmp/nvim.tar.gz -C /opt 2>&1 | head -20
+    sudo tar -xzf /tmp/nvim.tar.gz -C /opt
     if [ "$ARCH" = "amd64" ]; then
         sudo ln -sf /opt/nvim-linux64/bin/nvim /usr/local/bin/nvim
     else
@@ -81,12 +81,13 @@ fi
 log_info "Neovim extracted successfully"
 
 # Cleanup
-rm /tmp/nvim.tar.gz
+rm -f /tmp/nvim.tar.gz
 
 # Verify installation
-if nvim --version | head -n1; then
-    log_info "Neovim installed successfully"
+if command -v nvim >/dev/null 2>&1; then
+    NVIM_VERSION_OUTPUT=$(nvim --version 2>&1 | head -n1)
+    log_info "Neovim installed successfully: $NVIM_VERSION_OUTPUT"
 else
-    log_error "Neovim installation verification failed"
+    log_error "Neovim installation verification failed - nvim command not found"
     exit 1
 fi
