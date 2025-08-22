@@ -66,7 +66,7 @@ chmod +x create-lazyvim-ct.sh
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--ctid` | Container ID | Auto (200-299) |
-| `--name` | Container hostname | lazyvim-devbox |
+| `--name` | Container hostname | lazyvimmer |
 | `--memory` | Memory in MB | 4096 |
 | `--cores` | CPU cores | 2 |
 | `--disk` | Disk size in GB | 20 |

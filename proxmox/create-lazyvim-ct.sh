@@ -19,7 +19,7 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 
 # Default configuration
 CTID="${CTID:-}"
-CT_NAME="${CT_NAME:-lazyvim-devbox}"
+CT_NAME="${CT_NAME:-lazyvimmer}"
 CT_MEMORY="${CT_MEMORY:-4096}"
 CT_CORES="${CT_CORES:-2}"
 CT_DISK="${CT_DISK:-20}"
@@ -415,7 +415,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --ctid ID           Container ID (default: auto-find 200-299)"
-            echo "  --name NAME         Container hostname (default: lazyvim-devbox)"
+            echo "  --name NAME         Container hostname (default: lazyvimmer)"
             echo "  --memory MB         Memory in MB (default: 4096)"
             echo "  --cores N           CPU cores (default: 2)"
             echo "  --disk GB           Root disk size in GB (default: 20)"
