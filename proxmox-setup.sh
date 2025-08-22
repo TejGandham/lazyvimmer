@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Proxmox CT Setup Script
+# Proxmox CT Setup Script v2.0
 # Creates Ubuntu 24.04 LTS container with Python 3.12 and Node.js LTS
 
 # Color output
@@ -121,6 +121,7 @@ if pct status $CTID &>/dev/null 2>&1; then
     exit 1
 fi
 
+log_info "Proxmox CT Setup Script v2.0"
 log_info "Configuration:"
 log_info "  CTID: $CTID"
 log_info "  Name: $CT_NAME"
@@ -138,18 +139,29 @@ log_info "Updating template list..."
 pveam update
 
 log_info "Checking for Ubuntu 24.04 templates..."
-# Debug: show what we're finding
-AVAILABLE_TEMPLATES=$(pveam available | grep -i "ubuntu-24" || true)
+
+# First, let's see ALL available templates to understand the format
+log_info "Fetching available templates..."
+ALL_TEMPLATES=$(pveam available)
+
+# Debug: show what Ubuntu templates are available
+UBUNTU_TEMPLATES=$(echo "$ALL_TEMPLATES" | grep -i ubuntu || true)
+if [ -n "$UBUNTU_TEMPLATES" ]; then
+    log_info "Available Ubuntu templates (first 5):"
+    echo "$UBUNTU_TEMPLATES" | head -5
+fi
+
+# Now look specifically for Ubuntu 24.04
+AVAILABLE_TEMPLATES=$(echo "$ALL_TEMPLATES" | grep -i "ubuntu-24.04" || true)
 
 if [ -z "$AVAILABLE_TEMPLATES" ]; then
     log_error "Ubuntu 24.04 template not found in Proxmox repository"
-    log_info "Available Ubuntu templates:"
-    pveam available | grep -i ubuntu | head -5 || true
     log_error "Please ensure your Proxmox repositories are configured correctly"
     exit 1
 fi
 
-# Extract the actual template name (column 2 from pveam available output)
+# The output format is: <repository> <template-name>
+# We need just the template name (second column)
 TEMPLATE_NAME=$(echo "$AVAILABLE_TEMPLATES" | head -1 | awk '{print $2}')
 
 if [ -z "$TEMPLATE_NAME" ]; then
