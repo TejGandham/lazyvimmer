@@ -238,6 +238,12 @@ main() {
         run_script scripts/setup-user.sh --ssh-only
     fi
     
+    # Try to complete Neovim setup
+    if [ -f "$SCRIPT_DIR/scripts/finish-nvim-setup.sh" ] || [ -n "${USE_GITHUB:-}" ]; then
+        log_info "Completing Neovim setup..."
+        run_script scripts/finish-nvim-setup.sh || log_warn "Some Neovim packages may need manual installation"
+    fi
+    
     log_info "Installation complete!"
     log_info "User: $INSTALL_USER"
     log_info "Workspace: $WORKSPACE_DIR"
@@ -251,6 +257,8 @@ main() {
         if [ "$INSTALL_USER" != "$USER" ] && [ "$INSTALL_USER" != "root" ]; then
             log_info "Switch to the dev user: su - $INSTALL_USER"
         fi
+        log_info ""
+        log_info "Note: First launch of nvim may install remaining components."
     fi
 }
 
