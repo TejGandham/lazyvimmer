@@ -392,9 +392,15 @@ main() {
             pct exec ${CTID} -- chmod 600 /home/dev/.ssh/authorized_keys
         fi
         
+        # Configure SSH for key-based authentication
+        log_info "Configuring SSH..."
+        pct exec ${CTID} -- bash -c "sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config"
+        pct exec ${CTID} -- bash -c "sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config"
+        pct exec ${CTID} -- bash -c "sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config"
+        
         # Ensure SSH is running
         pct exec ${CTID} -- systemctl enable ssh
-        pct exec ${CTID} -- systemctl start ssh
+        pct exec ${CTID} -- systemctl restart ssh
         
         # Run setup script
         log_step "Installing LazyVim development environment..."
@@ -402,21 +408,50 @@ main() {
         
         log_info "Setup completed!"
         
+        # Test SSH connectivity
+        log_info "Verifying SSH access..."
+        if [ -n "$CT_IP" ] && [ -n "$SSH_KEY" ]; then
+            # Give SSH a moment to fully start
+            sleep 2
+            if timeout 5 bash -c "echo 'exit' | nc -w 1 ${CT_IP} 22" >/dev/null 2>&1; then
+                log_info "✓ SSH is accessible on port 22"
+            else
+                log_warn "SSH may not be ready yet. Try again in a few seconds."
+            fi
+        fi
+        
         echo
         log_info "=== Container Ready ==="
         log_info "Container ID: ${CTID}"
         log_info "Container Name: ${CT_NAME}"
         if [ -n "$CT_IP" ]; then
             log_info "IP Address: ${CT_IP}"
-            log_info "SSH Command: ssh dev@${CT_IP}"
+            echo
+            log_info "=== SSH Access ==="
+            log_info "Command: ssh dev@${CT_IP}"
+            if [ -n "$SSH_KEY" ]; then
+                log_info "Authentication: SSH key configured"
+                log_info "Your SSH public key has been added to /home/dev/.ssh/authorized_keys"
+            fi
         else
             log_info "IP Address: Check with 'pct exec ${CTID} -- ip addr show'"
         fi
-        log_info "Root Password: ${CT_PASSWORD} (saved for emergency access)"
+        
+        echo
+        log_info "=== Alternative Access Methods ==="
+        log_info "1. Direct console: pct enter ${CTID}"
+        log_info "2. As root: pct exec ${CTID} -- bash"
+        log_info "3. As dev user: pct exec ${CTID} -- su - dev"
         
         if [ -z "$SSH_KEY" ]; then
-            log_warn "No SSH key was configured. Use 'pct enter ${CTID}' for initial access"
+            echo
+            log_warn "No SSH key was configured!"
+            log_warn "You'll need to use 'pct enter ${CTID}' and set up SSH keys manually"
+            log_warn "Or set a password for dev user: pct exec ${CTID} -- passwd dev"
         fi
+        
+        echo
+        log_info "Root Password: ${CT_PASSWORD} (saved for emergency access only)"
         
         echo
         log_info "LazyVim and all tools are installed and ready!"
