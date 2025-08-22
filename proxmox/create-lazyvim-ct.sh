@@ -198,10 +198,8 @@ create_container() {
     # Set password for root (backup access)
     create_cmd="$create_cmd --password ${CT_PASSWORD}"
     
-    # Add cloud-init if we created the snippets
-    if [ -f "/var/lib/vz/snippets/lazyvim-${ctid}-user.yml" ]; then
-        create_cmd="$create_cmd --cicustom user=local:snippets/lazyvim-${ctid}-user.yml,meta=local:snippets/lazyvim-${ctid}-meta.yml"
-    fi
+    # Note: cloud-init (cicustom) is only for VMs, not containers
+    # For containers, we'll run setup after creation
     
     # Execute creation
     eval $create_cmd
@@ -368,8 +366,41 @@ main() {
         # Get container IP
         CT_IP=$(get_container_ip "$CTID")
         
-        # Wait for setup to complete
-        wait_for_setup "$CTID" "$CT_IP"
+        # Run setup inside container (containers don't support cloud-init like VMs do)
+        log_step "Running setup inside container..."
+        
+        # Wait for container to be fully ready
+        sleep 5
+        
+        # Install minimal requirements
+        log_info "Installing prerequisites..."
+        pct exec ${CTID} -- apt-get update -y
+        pct exec ${CTID} -- apt-get install -y curl sudo openssh-server
+        
+        # Create dev user
+        log_info "Creating dev user..."
+        pct exec ${CTID} -- useradd -m -s /bin/bash -G sudo dev || true
+        pct exec ${CTID} -- bash -c "echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev"
+        
+        # Add SSH key if provided
+        if [ -n "$SSH_KEY" ]; then
+            log_info "Setting up SSH key..."
+            pct exec ${CTID} -- mkdir -p /home/dev/.ssh
+            pct exec ${CTID} -- bash -c "echo '$SSH_KEY' > /home/dev/.ssh/authorized_keys"
+            pct exec ${CTID} -- chown -R dev:dev /home/dev/.ssh
+            pct exec ${CTID} -- chmod 700 /home/dev/.ssh
+            pct exec ${CTID} -- chmod 600 /home/dev/.ssh/authorized_keys
+        fi
+        
+        # Ensure SSH is running
+        pct exec ${CTID} -- systemctl enable ssh
+        pct exec ${CTID} -- systemctl start ssh
+        
+        # Run setup script
+        log_step "Installing LazyVim development environment..."
+        pct exec ${CTID} -- bash -c "curl -fsSL https://raw.githubusercontent.com/${GITHUB_USER}/lazyvimmer/main/setup.sh | INSTALL_USER=dev WORKSPACE_DIR=/workspace CT_NAME=${CT_NAME} bash"
+        
+        log_info "Setup completed!"
         
         echo
         log_info "=== Container Ready ==="
