@@ -39,16 +39,16 @@ Toggle LazyVim setup by setting `RUN_LAZYVIM_SETUP` in docker-compose.yml:
 
 ```bash
 # Install for current user
-curl -fsSL https://raw.githubusercontent.com/YOUR_USER/lazyvim-devbox/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvim-devbox/main/setup.sh | bash
 
 # Or create a dev user
-curl -fsSL https://raw.githubusercontent.com/YOUR_USER/lazyvim-devbox/main/setup.sh | bash -s -- --create-user dev
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvim-devbox/main/setup.sh | bash -s -- --create-user dev
 ```
 
 #### Clone and Install
 
 ```bash
-git clone https://github.com/YOUR_USER/lazyvim-devbox.git
+git clone https://github.com/TejGandham/lazyvim-devbox.git
 cd lazyvim-devbox
 ./setup.sh
 ```

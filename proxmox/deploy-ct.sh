@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # One-liner deployment wrapper for LazyVim Devbox on Proxmox
-# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_USER/lazyvimmer/main/proxmox/deploy-ct.sh)
+# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 
 set -euo pipefail
 
 # Configuration - Edit these or pass as environment variables
-GITHUB_USER="${GITHUB_USER:-YOUR_USER}"
+GITHUB_USER="${GITHUB_USER:-TejGandham}"
 CT_NAME="${CT_NAME:-lazyvim-$(date +%y%m%d)}"
 CT_MEMORY="${CT_MEMORY:-4096}"
 CT_CORES="${CT_CORES:-2}"

@@ -26,9 +26,9 @@ runcmd:
   
   # Download and run setup script
   - |
-    curl -fsSL https://raw.githubusercontent.com/${GITHUB_USER}/lazyvimmer/main/setup.sh -o /tmp/setup.sh
+    curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/setup.sh -o /tmp/setup.sh
     chmod +x /tmp/setup.sh
-    GITHUB_RAW_URL="https://raw.githubusercontent.com/${GITHUB_USER}/lazyvimmer/main" \
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/TejGandham/lazyvimmer/main" \
     INSTALL_USER=dev \
     WORKSPACE_DIR=/workspace \
     /tmp/setup.sh --unattended

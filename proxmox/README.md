@@ -6,7 +6,7 @@ Automated deployment of LazyVim development environment as a Proxmox container.
 
 ```bash
 # On your Proxmox host, run:
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_USER/lazyvimmer/main/proxmox/deploy-ct.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 ```
 
 This creates a fully configured Ubuntu 22.04 CT with:
@@ -44,7 +44,7 @@ For more control, download and run the creation script directly:
 
 ```bash
 # Download the script
-wget https://raw.githubusercontent.com/YOUR_USER/lazyvimmer/main/proxmox/create-lazyvim-ct.sh
+wget https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/create-lazyvim-ct.sh
 chmod +x create-lazyvim-ct.sh
 
 # Run with custom options
@@ -73,7 +73,7 @@ chmod +x create-lazyvim-ct.sh
 | `--gateway` | Gateway IP | (none) |
 | `--ssh-key` | SSH public key string | (auto-detect) |
 | `--ssh-key-file` | SSH public key file | ~/.ssh/id_rsa.pub |
-| `--github-user` | GitHub username | YOUR_USER |
+| `--github-user` | GitHub username | TejGandham |
 | `--no-start` | Don't start after creation | false |
 
 ## Usage Workflow
@@ -140,7 +140,7 @@ pct exec <ctid> -- ip addr show eth0
 If automatic setup fails, manually run inside the container:
 ```bash
 pct enter <ctid>
-curl -fsSL https://raw.githubusercontent.com/YOUR_USER/lazyvimmer/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/setup.sh | bash
 ```
 
 ## Requirements

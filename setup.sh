@@ -22,7 +22,7 @@ SETUP_SSH="${SETUP_SSH:-false}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
 SKIP_LAZYVIM="${SKIP_LAZYVIM:-false}"
 UNATTENDED="${UNATTENDED:-true}"
-GITHUB_RAW_URL="${GITHUB_RAW_URL:-https://raw.githubusercontent.com/YOUR_USER/lazyvimmer/main}"
+GITHUB_RAW_URL="${GITHUB_RAW_URL:-https://raw.githubusercontent.com/TejGandham/lazyvimmer/main}"
 
 # Script directory detection
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
