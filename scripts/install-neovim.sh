@@ -63,40 +63,55 @@ fi
 # Extract quietly with progress indicator
 if [ "$EUID" -eq 0 ]; then
     tar -xzf /tmp/nvim.tar.gz -C /opt
-    # Ensure /usr/local/bin exists
-    mkdir -p /usr/local/bin
-    # Neovim archive structure is predictable: nvim-linux64 or nvim-linux-arm64
-    if [ "$ARCH" = "amd64" ]; then
-        ln -sf /opt/nvim-linux64/bin/nvim /usr/local/bin/nvim
-    else
-        ln -sf /opt/nvim-linux-arm64/bin/nvim /usr/local/bin/nvim
-    fi
 else
     sudo tar -xzf /tmp/nvim.tar.gz -C /opt
-    sudo mkdir -p /usr/local/bin
-    if [ "$ARCH" = "amd64" ]; then
-        sudo ln -sf /opt/nvim-linux64/bin/nvim /usr/local/bin/nvim
-    else
-        sudo ln -sf /opt/nvim-linux-arm64/bin/nvim /usr/local/bin/nvim
+fi
+
+log_info "Neovim extracted successfully"
+
+# Debug: Check what was actually extracted
+log_info "Checking extracted contents in /opt:"
+ls -la /opt/ | grep nvim || true
+
+# Find the actual nvim directory name (it might vary)
+NVIM_DIR=$(find /opt -maxdepth 1 -type d -name "nvim*" | head -1)
+if [ -z "$NVIM_DIR" ]; then
+    log_error "No nvim directory found in /opt after extraction"
+    log_info "Contents of /opt:"
+    ls -la /opt/
+    exit 1
+fi
+
+log_info "Found Neovim directory: $NVIM_DIR"
+
+# Check if binary exists
+if [ ! -f "$NVIM_DIR/bin/nvim" ]; then
+    log_error "nvim binary not found at $NVIM_DIR/bin/nvim"
+    log_info "Contents of $NVIM_DIR:"
+    ls -la "$NVIM_DIR/" || true
+    if [ -d "$NVIM_DIR/bin" ]; then
+        log_info "Contents of $NVIM_DIR/bin:"
+        ls -la "$NVIM_DIR/bin/" || true
     fi
+    exit 1
+fi
+
+# Create symlink
+if [ "$EUID" -eq 0 ]; then
+    mkdir -p /usr/local/bin
+    ln -sf "$NVIM_DIR/bin/nvim" /usr/local/bin/nvim
+    log_info "Created symlink: /usr/local/bin/nvim -> $NVIM_DIR/bin/nvim"
+else
+    sudo mkdir -p /usr/local/bin
+    sudo ln -sf "$NVIM_DIR/bin/nvim" /usr/local/bin/nvim
+    log_info "Created symlink: /usr/local/bin/nvim -> $NVIM_DIR/bin/nvim"
 fi
 
 # Also add to PATH for current session if needed
 export PATH="/usr/local/bin:$PATH"
 
-log_info "Neovim extracted successfully"
-
-# Debug: Check what was extracted
-if [ -d /opt/nvim-linux64 ]; then
-    log_info "Found /opt/nvim-linux64"
-    ls -la /opt/nvim-linux64/bin/nvim 2>/dev/null || log_error "nvim binary not found in /opt/nvim-linux64/bin/"
-elif [ -d /opt/nvim-linux-arm64 ]; then
-    log_info "Found /opt/nvim-linux-arm64"
-    ls -la /opt/nvim-linux-arm64/bin/nvim 2>/dev/null || log_error "nvim binary not found in /opt/nvim-linux-arm64/bin/"
-fi
-
 # Check symlink
-ls -la /usr/local/bin/nvim 2>/dev/null || log_error "Symlink not created at /usr/local/bin/nvim"
+ls -la /usr/local/bin/nvim || log_error "Symlink not created at /usr/local/bin/nvim"
 
 # Cleanup
 rm -f /tmp/nvim.tar.gz
