@@ -121,7 +121,6 @@ if pct status $CTID &>/dev/null 2>&1; then
     exit 1
 fi
 
-log_info "Creating Ubuntu $UBUNTU_VERSION container"
 log_info "Configuration:"
 log_info "  CTID: $CTID"
 log_info "  Name: $CT_NAME"
@@ -135,17 +134,37 @@ if [ -n "$GITHUB_USERNAME" ]; then
 fi
 
 # Download Ubuntu template if not exists
-TEMPLATE_NAME="ubuntu-${UBUNTU_VERSION}-standard_${UBUNTU_VERSION}-1_amd64.tar.zst"
+# First, let's check what templates are available
+log_info "Checking available Ubuntu templates..."
+AVAILABLE_TEMPLATES=$(pveam available | grep -i "ubuntu-24" || true)
+
+if [ -z "$AVAILABLE_TEMPLATES" ]; then
+    # Try with Ubuntu 22.04 if 24.04 is not available
+    log_warn "Ubuntu 24.04 not found, trying Ubuntu 22.04..."
+    UBUNTU_VERSION="22.04"
+    AVAILABLE_TEMPLATES=$(pveam available | grep -i "ubuntu-22" || true)
+fi
+
+# Extract the actual template name
+TEMPLATE_NAME=$(echo "$AVAILABLE_TEMPLATES" | head -1 | awk '{print $2}')
+
+if [ -z "$TEMPLATE_NAME" ]; then
+    log_error "No Ubuntu templates found. Please check your Proxmox repository configuration."
+    exit 1
+fi
+
 TEMPLATE_PATH="/var/lib/vz/template/cache/${TEMPLATE_NAME}"
 
 if [ ! -f "$TEMPLATE_PATH" ]; then
-    log_info "Downloading Ubuntu $UBUNTU_VERSION template..."
+    log_info "Downloading template: $TEMPLATE_NAME"
     pveam update
     pveam download local "$TEMPLATE_NAME"
+else
+    log_info "Using existing template: $TEMPLATE_NAME"
 fi
 
 # Create container
-log_info "Creating container..."
+log_info "Creating Ubuntu $UBUNTU_VERSION container..."
 pct create $CTID "$TEMPLATE_PATH" \
     --hostname "$CT_NAME" \
     --memory "$CT_MEMORY" \
