@@ -16,9 +16,29 @@ return {
     end,
   },
   { "neovim/nvim-lspconfig", opts = { servers = { pyright = {}, ruff_lsp = {} } } },
+  -- Ensure nvim-dap is installed first
   {
     "mfussenegger/nvim-dap",
-    dependencies = { "rcarriga/nvim-dap-ui", "jay-babu/mason-nvim-dap.nvim" },
+    dependencies = { 
+      "rcarriga/nvim-dap-ui",
+      "nvim-neotest/nvim-nio",
+    },
+  },
+  -- Then configure mason-nvim-dap
+  {
+    "jay-babu/mason-nvim-dap.nvim",
+    dependencies = {
+      "mfussenegger/nvim-dap",
+      "williamboman/mason.nvim",
+    },
+    opts = {
+      ensure_installed = { "debugpy" },
+      handlers = {},
+    },
+  },
+  -- Python-specific DAP configuration
+  {
+    "mfussenegger/nvim-dap",
     config = function()
       local dap = require("dap")
       dap.configurations.python = dap.configurations.python or {}

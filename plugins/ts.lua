@@ -23,14 +23,54 @@ return {
       })
     end,
   },
+  -- Ensure nvim-dap is installed first
   {
-    "mxsdev/nvim-dap-vscode-js",
-    dependencies = { "mfussenegger/nvim-dap", "rcarriga/nvim-dap-ui", "jay-babu/mason-nvim-dap.nvim" },
+    "mfussenegger/nvim-dap",
+    dependencies = { 
+      "rcarriga/nvim-dap-ui",
+      "nvim-neotest/nvim-nio",
+    },
+  },
+  -- Configure mason-nvim-dap for JS/TS debugging
+  {
+    "jay-babu/mason-nvim-dap.nvim",
+    dependencies = {
+      "mfussenegger/nvim-dap",
+      "williamboman/mason.nvim",
+    },
+    opts = {
+      ensure_installed = { "js-debug-adapter" },
+      handlers = {},
+    },
+  },
+  -- JavaScript/TypeScript DAP configuration
+  {
+    "mfussenegger/nvim-dap",
     config = function()
-      require("dap-vscode-js").setup({ adapters = { "pwa-node", "pwa-chrome" } })
       local dap = require("dap")
+      
+      -- Configure the js-debug-adapter
+      if not dap.adapters["pwa-node"] then
+        dap.adapters["pwa-node"] = {
+          type = "server",
+          host = "localhost",
+          port = "${port}",
+          executable = {
+            command = "js-debug-adapter",
+            args = { "${port}" },
+          },
+        }
+      end
+      
       for _, ft in ipairs({ "typescript", "typescriptreact", "javascript", "javascriptreact" }) do
         dap.configurations[ft] = dap.configurations[ft] or {}
+        table.insert(dap.configurations[ft], {
+          type = "pwa-node",
+          request = "launch",
+          name = "Launch file",
+          program = "${file}",
+          cwd = "${workspaceFolder}",
+        })
         table.insert(dap.configurations[ft], {
           type = "pwa-node",
           request = "launch",
@@ -39,13 +79,6 @@ return {
           runtimeArgs = { "./node_modules/jest/bin/jest.js", "${file}", "--runInBand" },
           cwd = "${workspaceFolder}",
           console = "integratedTerminal",
-        })
-        table.insert(dap.configurations[ft], {
-          type = "pwa-chrome",
-          request = "launch",
-          name = "Chrome inspect app",
-          url = "http://localhost:3000",
-          webRoot = "${workspaceFolder}",
         })
       end
     end,

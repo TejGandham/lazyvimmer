@@ -57,52 +57,8 @@ nvim --headless "+lua require('lazy').sync({ wait = true, show = false })" +qa 2
 # The simplified approach - let LazyVim handle the rest on first real launch
 echo "Configuring LSP servers and tools..."
 
-# Create a custom config to ensure packages are marked for installation
-cat > "$PLUG_DIR/ensure-mason.lua" <<'LUA'
-return {
-  {
-    "williamboman/mason.nvim",
-    opts = function(_, opts)
-      opts.ensure_installed = opts.ensure_installed or {}
-      vim.list_extend(opts.ensure_installed, {
-        "stylua",
-        "shfmt",
-      })
-    end,
-  },
-  {
-    "williamboman/mason-lspconfig.nvim",
-    opts = function(_, opts)
-      opts.ensure_installed = opts.ensure_installed or {}
-      vim.list_extend(opts.ensure_installed, {
-        "pyright",
-        "ruff_lsp",
-        "tsserver",
-        "eslint",
-      })
-    end,
-  },
-  {
-    "jay-babu/mason-nvim-dap.nvim",
-    opts = function(_, opts)
-      opts.ensure_installed = opts.ensure_installed or {}
-      vim.list_extend(opts.ensure_installed, {
-        "debugpy",
-        "js-debug-adapter",
-      })
-    end,
-  },
-  {
-    "stevearc/conform.nvim",
-    opts = function(_, opts)
-      opts.formatters_by_ft = opts.formatters_by_ft or {}
-      opts.formatters_by_ft.python = { "black" }
-      opts.formatters_by_ft.javascript = { "prettier" }
-      opts.formatters_by_ft.typescript = { "prettier" }
-    end,
-  },
-}
-LUA
+# Don't create ensure-mason.lua anymore - let plugins handle their own config
+# The python.lua and ts.lua files already configure the necessary packages
 
 echo "Initial setup complete. Packages will install on first Neovim launch."
 
