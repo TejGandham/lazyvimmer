@@ -52,26 +52,40 @@ install_lazygit() {
 
 # Install Node.js LTS and Claude Code
 install_nodejs_claude() {
-    log_info "Installing Node.js LTS..."
+    log_info "Installing Node.js 22 LTS..."
     
-    # Download and run NodeSource setup script
-    curl -fsSL https://deb.nodesource.com/setup_lts.x -o /tmp/nodesource_setup.sh
-    
+    # Install prerequisites for NodeSource repository
     if [ "$EUID" -eq 0 ]; then
-        bash /tmp/nodesource_setup.sh
+        apt-get update -y
+        apt-get install -y ca-certificates curl gnupg
+        mkdir -p /etc/apt/keyrings
+    else
+        sudo apt-get update -y
+        sudo apt-get install -y ca-certificates curl gnupg
+        sudo mkdir -p /etc/apt/keyrings
+    fi
+    
+    # Add NodeSource GPG key and repository for Node.js 22
+    log_info "Adding NodeSource repository for Node.js 22..."
+    if [ "$EUID" -eq 0 ]; then
+        curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+        NODE_MAJOR=22
+        echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
         apt-get update -y
         apt-get install -y nodejs
     else
-        sudo bash /tmp/nodesource_setup.sh
+        curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+        NODE_MAJOR=22
+        echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
         sudo apt-get update -y
         sudo apt-get install -y nodejs
     fi
     
-    rm -f /tmp/nodesource_setup.sh
-    
     # Verify Node.js installation
-    if node --version && npm --version; then
-        log_info "Node.js installed successfully"
+    if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+        NODE_VERSION=$(node --version)
+        NPM_VERSION=$(npm --version)
+        log_info "Node.js installed successfully: node $NODE_VERSION, npm $NPM_VERSION"
     else
         log_error "Node.js installation verification failed"
         return 1
@@ -85,10 +99,13 @@ install_nodejs_claude() {
         sudo npm install -g @anthropic-ai/claude-code
     fi
     
-    if command -v claude-code &>/dev/null; then
-        log_info "Claude Code CLI installed successfully"
+    # Verify Claude Code installation
+    if command -v claude-code >/dev/null 2>&1; then
+        CLAUDE_VERSION=$(claude-code --version 2>/dev/null || echo "version unknown")
+        log_info "Claude Code CLI installed successfully: $CLAUDE_VERSION"
     else
         log_error "Claude Code CLI installation verification failed"
+        log_warn "You can install it manually later with: npm install -g @anthropic-ai/claude-code"
         return 1
     fi
 }
