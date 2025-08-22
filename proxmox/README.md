@@ -7,6 +7,9 @@ Automated deployment of LazyVim development environment as a Proxmox container.
 ```bash
 # On your Proxmox host, run:
 bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
+
+# Or with a custom container name:
+CT_NAME=my-dev-container bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 ```
 
 This creates a fully configured Ubuntu 22.04 CT with:

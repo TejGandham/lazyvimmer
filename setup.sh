@@ -22,6 +22,7 @@ SETUP_SSH="${SETUP_SSH:-false}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
 SKIP_LAZYVIM="${SKIP_LAZYVIM:-false}"
 UNATTENDED="${UNATTENDED:-true}"
+CT_NAME="${CT_NAME:-}"
 GITHUB_RAW_URL="${GITHUB_RAW_URL:-https://raw.githubusercontent.com/TejGandham/lazyvimmer/main}"
 
 # Script directory detection
@@ -101,6 +102,10 @@ while [[ $# -gt 0 ]]; do
             UNATTENDED=true
             shift
             ;;
+        --name)
+            CT_NAME="$2"
+            shift 2
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -111,6 +116,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --workspace DIR     Set workspace directory (default: /workspace)"
             echo "  --skip-lazyvim      Skip LazyVim installation"
             echo "  --unattended        Run in unattended mode (default: true)"
+            echo "  --name NAME         Container name (for Proxmox CT creation)"
             echo "  --help              Show this help message"
             exit 0
             ;;
@@ -223,6 +229,9 @@ main() {
     log_info "Installation complete!"
     log_info "User: $INSTALL_USER"
     log_info "Workspace: $WORKSPACE_DIR"
+    if [ -n "$CT_NAME" ]; then
+        log_info "Container Name: $CT_NAME"
+    fi
     
     if [ "$env_type" = "container" ] || [ "$env_type" = "vm" ]; then
         log_info ""

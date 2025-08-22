@@ -31,6 +31,7 @@ runcmd:
     GITHUB_RAW_URL="https://raw.githubusercontent.com/TejGandham/lazyvimmer/main" \
     INSTALL_USER=dev \
     WORKSPACE_DIR=/workspace \
+    CT_NAME="${CT_NAME}" \
     /tmp/setup.sh --unattended
   
   # Set a marker that setup is complete

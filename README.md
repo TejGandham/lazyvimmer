@@ -14,6 +14,16 @@ A comprehensive development environment with Neovim, LazyVim, and modern develop
 
 ## Quick Start
 
+### Command Line Options
+
+The setup script supports the following options:
+- `--name NAME` - Set container name (useful for Proxmox CTs)
+- `--create-user USER` - Create a new user (default: dev)
+- `--setup-ssh` - Configure SSH server
+- `--workspace DIR` - Set workspace directory (default: /workspace)
+- `--skip-lazyvim` - Skip LazyVim installation
+- `--unattended` - Run without prompts (default: true)
+
 ### Option 1: Docker (Original Method)
 
 ```bash
@@ -41,8 +51,8 @@ Toggle LazyVim setup by setting `RUN_LAZYVIM_SETUP` in docker-compose.yml:
 # Install for current user
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvim-devbox/main/setup.sh | bash
 
-# Or create a dev user
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvim-devbox/main/setup.sh | bash -s -- --create-user dev
+# Or create a dev user with custom name
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvim-devbox/main/setup.sh | bash -s -- --create-user dev --name my-devbox
 ```
 
 #### Clone and Install

@@ -138,6 +138,7 @@ runcmd:
     GITHUB_RAW_URL="https://raw.githubusercontent.com/${GITHUB_USER}/lazyvimmer/main" \\
     INSTALL_USER=dev \\
     WORKSPACE_DIR=/workspace \\
+    CT_NAME="${CT_NAME}" \\
     SKIP_LAZYVIM=false \\
     ./setup.sh
   
