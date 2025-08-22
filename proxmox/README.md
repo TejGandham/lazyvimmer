@@ -5,11 +5,14 @@ Automated deployment of LazyVim development environment as a Proxmox container.
 ## Quick Start (One-Liner)
 
 ```bash
-# On your Proxmox host, run:
-bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
+# RECOMMENDED: Use your GitHub SSH keys for remote access
+GITHUB_USERNAME=yourusername bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 
 # Or with a custom container name:
-CT_NAME=my-dev-container bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
+CT_NAME=my-dev GITHUB_USERNAME=yourusername bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
+
+# Basic (will use Proxmox host's SSH keys if available):
+bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 ```
 
 **Note:** The script is idempotent! If a container with the same name already exists, it will show its status instead of creating a new one. Use `--force` to recreate.
@@ -76,8 +79,9 @@ chmod +x create-lazyvim-ct.sh
 | `--bridge` | Network bridge | vmbr0 |
 | `--ip` | IP address or 'dhcp' | dhcp |
 | `--gateway` | Gateway IP | (none) |
-| `--ssh-key` | SSH public key string | (auto-detect) |
-| `--ssh-key-file` | SSH public key file | ~/.ssh/id_rsa.pub |
+| `--ssh-key` | SSH public key string | (none) |
+| `--ssh-key-file` | SSH public key file | (none) |
+| `--github-username` | GitHub user for SSH keys | (none) |
 | `--github-user` | GitHub username | TejGandham |
 | `--no-start` | Don't start after creation | false |
 | `--force` | Force recreate existing container | false |
@@ -108,15 +112,41 @@ Specify IP and gateway for static configuration:
 
 ## SSH Access
 
-### With SSH Key (Recommended)
-The script auto-detects SSH keys in standard locations:
-- `~/.ssh/id_rsa.pub`
-- `~/.ssh/id_ed25519.pub`
+### Multiple SSH Key Sources (Can Use Together)
 
-Or specify a key explicitly:
+The script supports multiple SSH key sources for flexible access management:
+
+#### 1. GitHub SSH Keys (RECOMMENDED)
 ```bash
+# Use your GitHub account's public keys
+./create-lazyvim-ct.sh --github-username yourusername
+```
+
+#### 2. Local SSH Key File
+```bash
+# Specify a key file from your workstation
 ./create-lazyvim-ct.sh --ssh-key-file /path/to/key.pub
 ```
+
+#### 3. Direct SSH Key String
+```bash
+# Provide key directly
+./create-lazyvim-ct.sh --ssh-key "ssh-rsa AAAAB3..."
+```
+
+#### 4. Multiple Sources
+```bash
+# Add keys from multiple sources (team access)
+./create-lazyvim-ct.sh \
+  --github-username developer1 \
+  --ssh-key-file /path/to/team-keys.pub
+```
+
+#### 5. Automatic Fallback
+If no keys are specified, the script checks for local keys:
+- `~/.ssh/id_rsa.pub`
+- `~/.ssh/id_ed25519.pub`
+- `~/.ssh/id_ecdsa.pub`
 
 ### Without SSH Key
 If no SSH key is available, use Proxmox console:

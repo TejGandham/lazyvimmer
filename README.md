@@ -6,7 +6,10 @@ Spin up a fully configured Neovim development environment in seconds. Works on P
 
 ### Proxmox (Recommended)
 ```bash
-# On your Proxmox host:
+# With your GitHub SSH keys (for remote access):
+GITHUB_USERNAME=yourusername bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
+
+# Or basic (uses Proxmox host's SSH keys if available):
 bash <(curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox/deploy-ct.sh)
 ```
 

@@ -31,7 +31,8 @@ CT_PASSWORD="${CT_PASSWORD:-$(openssl rand -base64 12)}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-local}"
 GITHUB_USER="${GITHUB_USER:-TejGandham}"
 SSH_PUBLIC_KEY="${SSH_PUBLIC_KEY:-}"
-SSH_KEY_FILE="${SSH_KEY_FILE:-$HOME/.ssh/id_rsa.pub}"
+SSH_KEY_FILE="${SSH_KEY_FILE:-}"
+GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-22.04}"
 START_AFTER_CREATE="${START_AFTER_CREATE:-true}"
 FORCE_RECREATE="${FORCE_RECREATE:-false}"
@@ -75,16 +76,62 @@ download_template() {
     pveam download $TEMPLATE_STORAGE ubuntu-${UBUNTU_VERSION}-standard_${UBUNTU_VERSION}-1_amd64.tar.zst
 }
 
-# Function to read SSH key
-get_ssh_key() {
+# Function to read SSH key(s) from multiple sources
+get_ssh_keys() {
+    local keys=""
+    
+    # Method 1: Direct SSH key string
     if [ -n "$SSH_PUBLIC_KEY" ]; then
-        echo "$SSH_PUBLIC_KEY"
-    elif [ -f "$SSH_KEY_FILE" ]; then
-        cat "$SSH_KEY_FILE"
-    else
-        log_warn "No SSH key provided or found at $SSH_KEY_FILE"
-        log_warn "You'll need to use password authentication initially"
+        log_info "Using provided SSH public key"
+        keys="$SSH_PUBLIC_KEY"
+    fi
+    
+    # Method 2: SSH key from file
+    if [ -n "$SSH_KEY_FILE" ] && [ -f "$SSH_KEY_FILE" ]; then
+        log_info "Adding SSH key from: $SSH_KEY_FILE"
+        if [ -n "$keys" ]; then
+            keys="$keys\n$(cat "$SSH_KEY_FILE")"
+        else
+            keys="$(cat "$SSH_KEY_FILE")"
+        fi
+    fi
+    
+    # Method 3: GitHub username (fetch keys from GitHub)
+    if [ -n "$GITHUB_USERNAME" ]; then
+        log_info "Fetching SSH keys from GitHub user: $GITHUB_USERNAME"
+        local github_keys=$(curl -fsSL "https://github.com/${GITHUB_USERNAME}.keys" 2>/dev/null)
+        if [ -n "$github_keys" ]; then
+            if [ -n "$keys" ]; then
+                keys="$keys\n$github_keys"
+            else
+                keys="$github_keys"
+            fi
+            log_info "Added $(echo "$github_keys" | wc -l) key(s) from GitHub"
+        else
+            log_warn "Could not fetch keys from GitHub user: $GITHUB_USERNAME"
+        fi
+    fi
+    
+    # Method 4: Try local SSH keys as fallback
+    if [ -z "$keys" ]; then
+        for keyfile in "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_ecdsa.pub"; do
+            if [ -f "$keyfile" ]; then
+                log_info "Using local SSH key: $keyfile"
+                keys="$(cat "$keyfile")"
+                break
+            fi
+        done
+    fi
+    
+    if [ -z "$keys" ]; then
+        log_warn "No SSH keys found or provided!"
+        log_warn "You can provide keys via:"
+        log_warn "  --ssh-key 'your-public-key'"
+        log_warn "  --ssh-key-file /path/to/key.pub"
+        log_warn "  --github-username your-github-user"
         echo ""
+    else
+        echo -e "$keys"
     fi
 }
 
@@ -347,8 +394,8 @@ main() {
         fi
     fi
     
-    # Get SSH key
-    SSH_KEY=$(get_ssh_key)
+    # Get SSH keys from multiple sources
+    SSH_KEY=$(get_ssh_keys)
     
     # Download template
     download_template
@@ -382,14 +429,18 @@ main() {
         pct exec ${CTID} -- useradd -m -s /bin/bash -G sudo dev || true
         pct exec ${CTID} -- bash -c "echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev"
         
-        # Add SSH key if provided
+        # Add SSH keys if provided
         if [ -n "$SSH_KEY" ]; then
-            log_info "Setting up SSH key..."
+            log_info "Setting up SSH keys..."
             pct exec ${CTID} -- mkdir -p /home/dev/.ssh
-            pct exec ${CTID} -- bash -c "echo '$SSH_KEY' > /home/dev/.ssh/authorized_keys"
+            # Use printf to properly handle multiple keys with newlines
+            pct exec ${CTID} -- bash -c "printf '%s\n' '$SSH_KEY' > /home/dev/.ssh/authorized_keys"
             pct exec ${CTID} -- chown -R dev:dev /home/dev/.ssh
             pct exec ${CTID} -- chmod 700 /home/dev/.ssh
             pct exec ${CTID} -- chmod 600 /home/dev/.ssh/authorized_keys
+            # Count how many keys were added
+            local key_count=$(echo "$SSH_KEY" | grep -c '^ssh-')
+            log_info "Added $key_count SSH key(s) to authorized_keys"
         fi
         
         # Configure SSH for key-based authentication
@@ -510,6 +561,10 @@ while [[ $# -gt 0 ]]; do
             SSH_KEY_FILE="$2"
             shift 2
             ;;
+        --github-username)
+            GITHUB_USERNAME="$2"
+            shift 2
+            ;;
         --github-user)
             GITHUB_USER="$2"
             shift 2
@@ -536,15 +591,28 @@ while [[ $# -gt 0 ]]; do
             echo "  --ip IP             IP address or 'dhcp' (default: dhcp)"
             echo "  --gateway GW        Gateway IP (required if using static IP)"
             echo "  --ssh-key KEY       SSH public key string"
-            echo "  --ssh-key-file FILE SSH public key file (default: ~/.ssh/id_rsa.pub)"
+            echo "  --ssh-key-file FILE SSH public key file"
+            echo "  --github-username USER  GitHub user to fetch SSH keys from (e.g., TejGandham)"
             echo "  --github-user USER  GitHub username for setup script (default: TejGandham)"
             echo "  --no-start          Don't start container after creation"
             echo "  --force             Force recreate if container with same name exists"
             echo "  --help              Show this help message"
             echo ""
+            echo "SSH Key Options (can use multiple simultaneously):"
+            echo "  - Direct key string with --ssh-key"
+            echo "  - Local file with --ssh-key-file"
+            echo "  - GitHub user's public keys with --github-username (RECOMMENDED)"
+            echo "  - Falls back to local ~/.ssh/*.pub if none provided"
+            echo ""
             echo "Examples:"
             echo "  # Create with defaults (DHCP, auto CTID)"
             echo "  $0"
+            echo ""
+            echo "  # Use GitHub SSH keys (RECOMMENDED for remote access)"
+            echo "  $0 --github-username yourusername"
+            echo ""
+            echo "  # Use multiple SSH key sources"
+            echo "  $0 --github-username user1 --ssh-key-file /path/to/team.pub"
             echo ""
             echo "  # Create with static IP"
             echo "  $0 --ip 192.168.1.100/24 --gateway 192.168.1.1"
