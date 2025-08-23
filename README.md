@@ -7,6 +7,9 @@ Minimal scripts for setting up development containers with Python 3.12 and Node.
 - Ubuntu 24.04 LTS base
 - Python 3.12 (from Ubuntu repos)
 - Node.js LTS via nvm (v0.40.3)
+- Claude Code CLI (Anthropic's official CLI)
+- uv Python package manager
+- GitHub CLI (gh command)
 - SSH access with GitHub key support
 - Unprivileged containers on Proxmox
 
@@ -91,4 +94,13 @@ Python 3.12 is available system-wide:
 python3 --version
 pip3 install <package>
 python3 -m venv myenv
+```
+
+## Claude Code CLI
+
+Claude Code is installed globally and available as:
+
+```bash
+claude --help          # Show help
+claude --version       # Check version
 ```

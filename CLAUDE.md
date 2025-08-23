@@ -10,6 +10,7 @@ Minimal scripts for creating development containers on Proxmox with Python 3.12 
 - **Python**: 3.12 from official Ubuntu repositories
 - **Node.js**: Latest LTS via nvm v0.40.3
 - **Package Manager**: uv for Python package management
+- **Claude Code CLI**: Anthropic's official CLI tool
 - **GitHub CLI**: gh command for GitHub operations
 - **User**: 'dev' user with sudo access
 - **SSH**: GitHub key authentication support
@@ -50,6 +51,7 @@ Standalone script for configuring any Ubuntu 24.04 container:
 - Updates system packages
 - Installs Python 3.12 and pip
 - Installs Node.js LTS via nvm for the specified user
+- Installs Claude Code CLI (@anthropic-ai/claude-code)
 - Installs uv for Python package management
 - Installs GitHub CLI (gh command)
 - Creates user with sudo access (NOPASSWD)
@@ -61,6 +63,7 @@ Standalone script for configuring any Ubuntu 24.04 container:
 - Checks if user exists before creating
 - Ensures sudo permissions even for existing users
 - Detects existing nvm installation and updates Node.js to latest LTS
+- Installs or updates Claude Code CLI as needed
 - Updates uv if already installed
 - Prevents duplicate GitHub SSH keys
 - Only installs GitHub CLI if not present, updates if exists
@@ -153,6 +156,7 @@ When making changes, verify:
 - [ ] Password generation and display
 - [ ] Python 3.12 installation
 - [ ] Node.js LTS via nvm
+- [ ] Claude Code CLI installation
 - [ ] uv Python package manager installation
 - [ ] GitHub CLI (gh) installation
 - [ ] User creation and sudo access
@@ -184,7 +188,11 @@ When making changes, verify:
 
 ## Version History
 
-### v2.1 (Current)
+### v2.2 (Current)
+- Added Claude Code CLI installation (@anthropic-ai/claude-code)
+- Installs globally via npm with automatic updates
+
+### v2.1
 - Made container-setup.sh fully idempotent
 - Safe to run multiple times for updates
 - Prevents duplicate SSH keys

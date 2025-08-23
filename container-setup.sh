@@ -175,6 +175,25 @@ fi
 
 log_info "Node.js LTS installed/updated via nvm"
 
+# Install Claude Code CLI if not already installed
+if ! sudo -u "$SETUP_USER" bash -c "source $USER_HOME/.nvm/nvm.sh && which claude" &>/dev/null; then
+    log_info "Installing Claude Code CLI..."
+    sudo -u "$SETUP_USER" bash -c "
+        export NVM_DIR=\"$USER_HOME/.nvm\"
+        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+        npm install -g @anthropic-ai/claude-code
+    "
+else
+    log_info "Claude Code CLI already installed, checking for updates..."
+    sudo -u "$SETUP_USER" bash -c "
+        export NVM_DIR=\"$USER_HOME/.nvm\"
+        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+        npm update -g @anthropic-ai/claude-code
+    "
+fi
+
+log_info "Claude Code CLI installed/updated"
+
 # Install uv (Python package manager) if not already installed
 if [ ! -f "$USER_HOME/.local/bin/uv" ]; then
     log_info "Installing uv..."
@@ -284,6 +303,7 @@ echo "========================================="
 echo "Python: $(python3 --version)"
 echo "Node.js: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && node --version' 2>/dev/null || echo "via nvm")"
 echo "npm: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && npm --version' 2>/dev/null || echo "via nvm")"
+echo "Claude Code: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && claude --version' 2>/dev/null || echo "installed")"
 echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/dev/null || echo "installed")"
 echo "GitHub CLI: $(gh --version 2>/dev/null | head -1 || echo "installed")"
 echo ""
