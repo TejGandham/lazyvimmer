@@ -203,6 +203,18 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     iputils-ping \
     dnsutils
 
+# Install GitHub CLI
+log_info "Installing GitHub CLI..."
+(type -p wget >/dev/null || (apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install wget -y)) \
+	&& mkdir -p -m 755 /etc/apt/keyrings \
+	&& out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+	&& cat $out | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+	&& chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+	&& mkdir -p -m 755 /etc/apt/sources.list.d \
+	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+	&& apt-get update \
+	&& DEBIAN_FRONTEND=noninteractive apt-get install gh -y
+
 # Clean up
 log_info "Cleaning up..."
 apt-get autoremove -y
@@ -218,6 +230,7 @@ echo "Python: $(python3 --version)"
 echo "Node.js: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && node --version' 2>/dev/null || echo "via nvm")"
 echo "npm: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && npm --version' 2>/dev/null || echo "via nvm")"
 echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/dev/null || echo "installed")"
+echo "GitHub CLI: $(gh --version 2>/dev/null | head -1 || echo "installed")"
 echo ""
 echo "User: $SETUP_USER"
 
