@@ -96,10 +96,11 @@ if ! id "$SETUP_USER" &>/dev/null; then
 else
     log_info "User $SETUP_USER already exists"
     echo "existing" > /tmp/user_password.txt
+    
+    # Ensure user is in sudo group and has NOPASSWD access
+    usermod -aG sudo "$SETUP_USER" 2>/dev/null || true
+    echo "$SETUP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SETUP_USER"
 fi
-
-# Install Node.js via nvm
-log_info "Installing nvm and Node.js LTS..."
 
 # Set user home directory
 USER_HOME="/home/$SETUP_USER"
@@ -107,20 +108,36 @@ if [ "$SETUP_USER" = "root" ]; then
     USER_HOME="/root"
 fi
 
-# Download and install nvm
-NVM_VERSION="v0.40.3"
-curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | sudo -u "$SETUP_USER" bash
-
-# Source nvm and install Node.js LTS
-sudo -u "$SETUP_USER" bash -c "
-    export NVM_DIR=\"$USER_HOME/.nvm\"
-    [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
-    nvm install --lts
-    nvm use --lts
-    nvm alias default lts/*
-    node --version
-    npm --version
-"
+# Install Node.js via nvm if not already installed
+if [ ! -d "$USER_HOME/.nvm" ]; then
+    log_info "Installing nvm and Node.js LTS..."
+    
+    # Download and install nvm
+    NVM_VERSION="v0.40.3"
+    curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | sudo -u "$SETUP_USER" bash
+    
+    # Source nvm and install Node.js LTS
+    sudo -u "$SETUP_USER" bash -c "
+        export NVM_DIR=\"$USER_HOME/.nvm\"
+        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+        nvm install --lts
+        nvm use --lts
+        nvm alias default lts/*
+        node --version
+        npm --version
+    "
+else
+    log_info "nvm already installed, updating Node.js LTS..."
+    sudo -u "$SETUP_USER" bash -c "
+        export NVM_DIR=\"$USER_HOME/.nvm\"
+        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+        nvm install --lts
+        nvm use --lts
+        nvm alias default lts/*
+        node --version
+        npm --version
+    "
+fi
 
 # Make nvm available in user's shell
 if ! grep -q "NVM_DIR" "$USER_HOME/.bashrc"; then
@@ -133,11 +150,16 @@ export NVM_DIR="$HOME/.nvm"
 NVMEOF
 fi
 
-log_info "Node.js LTS installed via nvm"
+log_info "Node.js LTS installed/updated via nvm"
 
-# Install uv (Python package manager)
-log_info "Installing uv..."
-sudo -u "$SETUP_USER" bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+# Install uv (Python package manager) if not already installed
+if [ ! -f "$USER_HOME/.local/bin/uv" ]; then
+    log_info "Installing uv..."
+    sudo -u "$SETUP_USER" bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+else
+    log_info "uv already installed, checking for updates..."
+    sudo -u "$SETUP_USER" bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+fi
 
 # Make uv available in user's shell
 if ! grep -q "uv" "$USER_HOME/.bashrc"; then
@@ -148,7 +170,7 @@ export PATH="$HOME/.local/bin:$PATH"
 UVEOF
 fi
 
-log_info "uv installed"
+log_info "uv installed/updated"
 
 # Setup SSH if requested
 if [ "$INSTALL_SSH" = "true" ]; then
@@ -160,9 +182,9 @@ if [ "$INSTALL_SSH" = "true" ]; then
     sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
     sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
     
-    # Restart SSH service
-    systemctl restart sshd
-    systemctl enable sshd
+    # Restart SSH service (Ubuntu uses 'ssh' not 'sshd')
+    systemctl restart ssh
+    systemctl enable ssh
     
     # Setup SSH directory for user
     USER_HOME="/home/$SETUP_USER"
@@ -180,8 +202,13 @@ if [ "$INSTALL_SSH" = "true" ]; then
         log_info "Fetching SSH keys from GitHub user: $GITHUB_USERNAME"
         GITHUB_KEYS=$(curl -fsSL "https://github.com/${GITHUB_USERNAME}.keys" 2>/dev/null || true)
         if [ -n "$GITHUB_KEYS" ]; then
-            echo "$GITHUB_KEYS" >> "$USER_HOME/.ssh/authorized_keys"
-            log_info "Added $(echo "$GITHUB_KEYS" | wc -l) SSH key(s) from GitHub"
+            # Check if keys are already present to avoid duplicates
+            while IFS= read -r key; do
+                if ! grep -qF "$key" "$USER_HOME/.ssh/authorized_keys" 2>/dev/null; then
+                    echo "$key" >> "$USER_HOME/.ssh/authorized_keys"
+                fi
+            done <<< "$GITHUB_KEYS"
+            log_info "GitHub SSH keys synchronized for $GITHUB_USERNAME"
         else
             log_warn "Could not fetch SSH keys from GitHub"
         fi
@@ -203,9 +230,10 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     iputils-ping \
     dnsutils
 
-# Install GitHub CLI
-log_info "Installing GitHub CLI..."
-(type -p wget >/dev/null || (apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install wget -y)) \
+# Install GitHub CLI if not already installed
+if ! command -v gh &>/dev/null; then
+    log_info "Installing GitHub CLI..."
+    (type -p wget >/dev/null || (apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install wget -y)) \
 	&& mkdir -p -m 755 /etc/apt/keyrings \
 	&& out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 	&& cat $out | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
@@ -214,6 +242,10 @@ log_info "Installing GitHub CLI..."
 	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
 	&& apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install gh -y
+else
+    log_info "GitHub CLI already installed, checking for updates..."
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --only-upgrade gh -y 2>/dev/null || true
+fi
 
 # Clean up
 log_info "Cleaning up..."
