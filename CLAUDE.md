@@ -11,7 +11,7 @@ Minimal scripts for creating development containers on Proxmox with Python 3.12 
 - **Node.js**: Latest LTS via nvm v0.40.3
 - **Package Manager**: uv for Python package management
 - **Claude Code CLI**: Anthropic's official CLI tool
-- **GitHub CLI**: gh command for GitHub operations
+- **GitHub CLI**: gh command with optional PAT authentication
 - **User**: 'dev' user with sudo access
 - **SSH**: GitHub key authentication support
 - **Networking**: DHCP only (vmbr0 bridge)
@@ -27,7 +27,7 @@ lazyvimmer/
 
 ## Scripts
 
-### proxmox-setup.sh (v2.0)
+### proxmox-setup.sh (v2.3)
 Runs on Proxmox host to create and configure containers:
 - Auto-detects available container ID (100-999)
 - Checks for existing containers by name (idempotent)
@@ -35,15 +35,16 @@ Runs on Proxmox host to create and configure containers:
 - Creates unprivileged container with nesting enabled
 - Configures networking with DHCP on vmbr0 bridge
 - Fetches SSH keys from GitHub
+- Optionally configures GitHub CLI authentication via PAT
 - Generates secure random passwords for root and dev users
-- Executes embedded setup script inside container
+- Downloads and executes full container-setup.sh from repository
 - Displays container IP address after creation
 
 Key features:
 - `--force` flag to recreate existing containers
 - Automatic template detection from `pveam available`
 - No fallback to older Ubuntu versions (fails if 24.04 unavailable)
-- Embedded container setup script for streamlined deployment
+- Downloads latest container-setup.sh from repository for consistency
 - Password display only during setup (not stored)
 
 ### container-setup.sh
@@ -53,7 +54,7 @@ Standalone script for configuring any Ubuntu 24.04 container:
 - Installs Node.js LTS via nvm for the specified user
 - Installs Claude Code CLI (@anthropic-ai/claude-code)
 - Installs uv for Python package management
-- Installs GitHub CLI (gh command)
+- Installs GitHub CLI (gh command) with optional PAT authentication
 - Creates user with sudo access (NOPASSWD)
 - Configures SSH with GitHub key support
 - Generates random passwords
@@ -67,6 +68,7 @@ Standalone script for configuring any Ubuntu 24.04 container:
 - Updates uv if already installed
 - Prevents duplicate GitHub SSH keys
 - Only installs GitHub CLI if not present, updates if exists
+- Configures GitHub CLI authentication if token provided
 - Preserves existing configurations
 
 Can be run independently in Docker containers or existing VMs. Safe for updating existing containers with new features.
@@ -132,6 +134,29 @@ pct push <CTID> container-setup.sh /tmp/setup.sh
 pct exec <CTID> -- bash /tmp/setup.sh --github-user yourusername
 ```
 
+### GitHub CLI Authentication
+**Problem**: Need to authenticate GitHub CLI for API operations
+
+**Solution**: Use Personal Access Token (PAT) during setup:
+1. Create a PAT at https://github.com/settings/tokens
+2. Required scopes: `repo` and `read:org`
+3. Pass token during setup:
+```bash
+# During Proxmox container creation
+./proxmox-setup.sh --github-token YOUR_PAT_HERE --github-user yourusername
+
+# Or with container-setup.sh directly
+GITHUB_TOKEN=YOUR_PAT_HERE ./container-setup.sh --github-user yourusername
+
+# Or pass as parameter (less secure, visible in process list)
+./container-setup.sh --github-token YOUR_PAT_HERE
+```
+
+**Security Notes**:
+- Token is never logged or displayed
+- Use environment variable method for better security
+- Token enables gh CLI for operations like creating PRs, managing issues, etc.
+
 ## Future Extension Points
 
 This minimal setup is designed to be extended with:
@@ -158,7 +183,7 @@ When making changes, verify:
 - [ ] Node.js LTS via nvm
 - [ ] Claude Code CLI installation
 - [ ] uv Python package manager installation
-- [ ] GitHub CLI (gh) installation
+- [ ] GitHub CLI (gh) installation and authentication
 - [ ] User creation and sudo access
 - [ ] SSH connectivity
 - [ ] Dev tools installation (vim, nano, htop, etc.)
@@ -168,27 +193,35 @@ When making changes, verify:
 ### proxmox-setup.sh
 ```bash
 ./proxmox-setup.sh [OPTIONS]
-  --ctid ID          Container ID (auto-detect if not specified)
-  --name NAME        Container name (default: devbox-YYMMDD)
-  --memory MB        Memory in MB (default: 4096)
-  --cores N          CPU cores (default: 2)
-  --disk GB          Disk size in GB (default: 20)
-  --storage NAME     Storage pool (default: local-zfs)
-  --github-user NAME GitHub username for SSH keys
-  --force            Force recreate if container exists
+  --ctid ID           Container ID (auto-detect if not specified)
+  --name NAME         Container name (default: devbox-YYMMDD)
+  --memory MB         Memory in MB (default: 4096)
+  --cores N           CPU cores (default: 2)
+  --disk GB           Disk size in GB (default: 20)
+  --storage NAME      Storage pool (default: local-zfs)
+  --github-user NAME  GitHub username for SSH keys
+  --github-token PAT  GitHub Personal Access Token for gh CLI authentication
+  --force             Force recreate if container exists
 ```
 
 ### container-setup.sh
 ```bash
 ./container-setup.sh [OPTIONS]
-  --user NAME        User to create (default: dev)
-  --github-user NAME GitHub username for SSH keys
-  --no-ssh          Skip SSH server installation
+  --user NAME         User to create (default: dev)
+  --github-user NAME  GitHub username for SSH keys
+  --github-token PAT  GitHub Personal Access Token for gh CLI authentication
+  --no-ssh           Skip SSH server installation
 ```
 
 ## Version History
 
-### v2.2 (Current)
+### v2.3 (Current)
+- Added GitHub CLI authentication support via Personal Access Tokens (PAT)
+- Updated proxmox-setup.sh to download container-setup.sh from repository
+- Secure token handling with environment variables
+- Optional authentication with helpful guidance
+
+### v2.2
 - Added Claude Code CLI installation (@anthropic-ai/claude-code)
 - Installs globally via npm with automatic updates
 

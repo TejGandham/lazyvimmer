@@ -26,6 +26,7 @@ CT_STORAGE="${CT_STORAGE:-local-zfs}"
 CT_PASSWORD="${CT_PASSWORD:-$(openssl rand -base64 12)}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-local}"
 GITHUB_USERNAME="${GITHUB_USERNAME:-}"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
 START_AFTER_CREATE="${START_AFTER_CREATE:-true}"
 FORCE_RECREATE="${FORCE_RECREATE:-false}"
@@ -40,18 +41,20 @@ while [[ $# -gt 0 ]]; do
         --disk) CT_DISK="$2"; shift 2 ;;
         --storage) CT_STORAGE="$2"; shift 2 ;;
         --github-user) GITHUB_USERNAME="$2"; shift 2 ;;
+        --github-token) GITHUB_TOKEN="$2"; shift 2 ;;
         --force) FORCE_RECREATE="true"; shift ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  --ctid ID          Container ID (auto-detect if not specified)"
-            echo "  --name NAME        Container name (default: devbox-YYMMDD)"
-            echo "  --memory MB        Memory in MB (default: 4096)"
-            echo "  --cores N          CPU cores (default: 2)"
-            echo "  --disk GB          Disk size in GB (default: 20)"
-            echo "  --storage NAME     Storage pool (default: local-zfs)"
-            echo "  --github-user NAME GitHub username for SSH keys"
-            echo "  --force            Force recreate if container exists"
+            echo "  --ctid ID           Container ID (auto-detect if not specified)"
+            echo "  --name NAME         Container name (default: devbox-YYMMDD)"
+            echo "  --memory MB         Memory in MB (default: 4096)"
+            echo "  --cores N           CPU cores (default: 2)"
+            echo "  --disk GB           Disk size in GB (default: 20)"
+            echo "  --storage NAME      Storage pool (default: local-zfs)"
+            echo "  --github-user NAME  GitHub username for SSH keys"
+            echo "  --github-token PAT  GitHub Personal Access Token for gh CLI authentication"
+            echo "  --force             Force recreate if container exists"
             exit 0
             ;;
         *) log_error "Unknown option: $1"; exit 1 ;;
@@ -222,119 +225,27 @@ if [ -n "$GITHUB_USERNAME" ]; then
     fi
 fi
 
-# Create setup script
-log_info "Creating container setup script..."
-cat > /tmp/container-setup-$CTID.sh << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
+# Download and run the full container setup script
+log_info "Downloading container setup script..."
+pct exec $CTID -- bash -c "curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh -o /tmp/container-setup.sh && chmod +x /tmp/container-setup.sh"
 
-# Update system
-echo "Updating system packages..."
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
-
-# Install basic tools
-echo "Installing basic tools..."
-DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl \
-    wget \
-    git \
-    build-essential \
-    software-properties-common \
-    sudo \
-    openssh-server \
-    ca-certificates \
-    gnupg
-
-# Install Python 3.12 (default in Ubuntu 24.04)
-echo "Installing Python 3.12..."
-DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-dev
-
-# Create dev user
-echo "Creating dev user..."
-useradd -m -s /bin/bash -G sudo dev
-echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev
-
-# Install Node.js via nvm for dev user
-echo "Installing nvm and Node.js LTS..."
-NVM_VERSION="v0.40.3"
-sudo -u dev bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash"
-sudo -u dev bash -c "
-    export NVM_DIR=/home/dev/.nvm
-    [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
-    nvm install --lts
-    nvm use --lts
-    nvm alias default lts/*
-"
-
-# Add nvm to dev user's bashrc
-if ! grep -q "NVM_DIR" /home/dev/.bashrc; then
-    cat >> /home/dev/.bashrc << 'NVMEOF'
-
-# NVM configuration
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-NVMEOF
+# Build setup command with arguments
+SETUP_ARGS="--user dev"
+if [ -n "$GITHUB_USERNAME" ]; then
+    SETUP_ARGS="$SETUP_ARGS --github-user $GITHUB_USERNAME"
 fi
-
-# Setup SSH
-echo "Configuring SSH..."
-sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart sshd
-
-# Setup SSH keys for dev user
-mkdir -p /home/dev/.ssh
-touch /home/dev/.ssh/authorized_keys
-chmod 700 /home/dev/.ssh
-chmod 600 /home/dev/.ssh/authorized_keys
-chown -R dev:dev /home/dev/.ssh
-
-# Add GitHub SSH keys if provided
-if [ -n "$1" ]; then
-    echo "$1" >> /home/dev/.ssh/authorized_keys
-    echo "Added SSH keys to dev user"
+if [ -n "$GITHUB_TOKEN" ]; then
+    # Pass token securely via environment variable to avoid exposing in process list
+    log_info "GitHub token will be configured in container"
+    pct exec $CTID -- bash -c "GITHUB_TOKEN='$GITHUB_TOKEN' /tmp/container-setup.sh $SETUP_ARGS"
+else
+    log_info "Running setup inside container..."
+    pct exec $CTID -- /tmp/container-setup.sh $SETUP_ARGS
 fi
-
-# Generate and set random password for dev user
-DEV_PASSWORD=$(openssl rand -base64 12)
-echo "dev:$DEV_PASSWORD" | chpasswd
-echo "$DEV_PASSWORD" > /tmp/dev_password.txt
-
-# Verify installations
-echo ""
-echo "=== Installation Summary ==="
-python3 --version
-pip3 --version
-sudo -u dev bash -c "source /home/dev/.nvm/nvm.sh && node --version"
-sudo -u dev bash -c "source /home/dev/.nvm/nvm.sh && npm --version"
-echo "User: dev"
-if [ -f /tmp/dev_password.txt ]; then
-    echo "Password: $(cat /tmp/dev_password.txt)"
-fi
-echo "SSH: Enabled"
-echo "NVM: Installed with Node.js LTS"
-echo "============================"
-EOF
-
-# Copy and run setup script in container
-log_info "Running setup inside container..."
-pct push $CTID /tmp/container-setup-$CTID.sh /tmp/setup.sh
-pct exec $CTID -- chmod +x /tmp/setup.sh
-pct exec $CTID -- /tmp/setup.sh "$SSH_KEYS"
 
 # Get the dev password from container
-DEV_PASSWORD=$(pct exec $CTID -- cat /tmp/dev_password.txt 2>/dev/null || echo "")
-pct exec $CTID -- rm -f /tmp/setup.sh /tmp/dev_password.txt
-
-# Cleanup
-rm /tmp/container-setup-$CTID.sh
+DEV_PASSWORD=$(pct exec $CTID -- cat /tmp/user_password.txt 2>/dev/null || echo "")
+pct exec $CTID -- rm -f /tmp/container-setup.sh /tmp/user_password.txt
 
 # Final message
 log_info "========================================="
@@ -354,7 +265,16 @@ fi
 if [ -n "$GITHUB_USERNAME" ]; then
     log_info "  GitHub SSH keys: Added for $GITHUB_USERNAME"
 fi
+if [ -n "$GITHUB_TOKEN" ]; then
+    log_info "  GitHub CLI: Authenticated"
+fi
 log_info ""
 log_info "Root password: $CT_PASSWORD"
 log_info ""
 log_info "IMPORTANT: Save these passwords securely!"
+if [ -z "$GITHUB_TOKEN" ]; then
+    log_info ""
+    log_info "TIP: To enable GitHub CLI authentication, use --github-token parameter"
+    log_info "     Create a token at: https://github.com/settings/tokens"
+    log_info "     Required scopes: 'repo' and 'read:org'"
+fi

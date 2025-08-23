@@ -9,7 +9,7 @@ Minimal scripts for setting up development containers with Python 3.12 and Node.
 - Node.js LTS via nvm (v0.40.3)
 - Claude Code CLI (Anthropic's official CLI)
 - uv Python package manager
-- GitHub CLI (gh command)
+- GitHub CLI (gh command) with optional authentication
 - SSH access with GitHub key support
 - Unprivileged containers on Proxmox
 
@@ -30,6 +30,13 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
   --cores 4 \
   --disk 50 \
   --github-user yourusername
+
+# With GitHub CLI authentication (recommended for development)
+export GITHUB_TOKEN="your_personal_access_token"
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup.sh | bash -s -- \
+  --name mydev \
+  --github-user yourusername \
+  --github-token "$GITHUB_TOKEN"
 ```
 
 ### Options for proxmox-setup.sh
@@ -41,6 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
 - `--disk GB` - Disk size in GB (default: 20)
 - `--storage NAME` - Storage pool (default: local-zfs)
 - `--github-user NAME` - GitHub username for SSH keys
+- `--github-token PAT` - GitHub Personal Access Token for gh CLI authentication
 - `--force` - Force recreate if container with same name exists
 
 ### Standalone Container Setup
@@ -54,12 +62,18 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/containe
 # With GitHub SSH keys
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | sudo bash -s -- \
   --github-user yourusername
+
+# With GitHub CLI authentication
+export GITHUB_TOKEN="your_personal_access_token"
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | \
+  sudo GITHUB_TOKEN="$GITHUB_TOKEN" bash -s -- --github-user yourusername
 ```
 
 ### Options for container-setup.sh
 
 - `--user NAME` - User to create (default: dev)
 - `--github-user NAME` - GitHub username for SSH keys
+- `--github-token PAT` - GitHub Personal Access Token for gh CLI authentication
 - `--no-ssh` - Skip SSH server installation
 
 ## Access
@@ -104,3 +118,22 @@ Claude Code is installed globally and available as:
 claude --help          # Show help
 claude --version       # Check version
 ```
+
+## GitHub CLI
+
+GitHub CLI is installed and can be authenticated with a Personal Access Token:
+
+```bash
+# Check authentication status
+gh auth status
+
+# Use gh for GitHub operations (if authenticated)
+gh repo clone owner/repo
+gh pr create
+gh issue list
+```
+
+To create a Personal Access Token:
+1. Visit https://github.com/settings/tokens
+2. Create a token with `repo` and `read:org` scopes
+3. Pass it during setup with `--github-token` parameter

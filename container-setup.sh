@@ -19,6 +19,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # Configuration
 SETUP_USER="${SETUP_USER:-dev}"
 GITHUB_USERNAME="${GITHUB_USERNAME:-}"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 INSTALL_SSH="${INSTALL_SSH:-true}"
 
 # Parse arguments
@@ -26,13 +27,15 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --user) SETUP_USER="$2"; shift 2 ;;
         --github-user) GITHUB_USERNAME="$2"; shift 2 ;;
+        --github-token) GITHUB_TOKEN="$2"; shift 2 ;;
         --no-ssh) INSTALL_SSH="false"; shift ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  --user NAME        User to create (default: dev)"
-            echo "  --github-user NAME GitHub username for SSH keys"
-            echo "  --no-ssh          Skip SSH server installation"
+            echo "  --user NAME         User to create (default: dev)"
+            echo "  --github-user NAME  GitHub username for SSH keys"
+            echo "  --github-token PAT  GitHub Personal Access Token for gh CLI authentication"
+            echo "  --no-ssh           Skip SSH server installation"
             exit 0
             ;;
         *) log_error "Unknown option: $1"; exit 1 ;;
@@ -289,6 +292,28 @@ else
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --only-upgrade gh -y 2>/dev/null || true
 fi
 
+# Configure GitHub CLI authentication if token provided
+if [ -n "$GITHUB_TOKEN" ]; then
+    log_info "Configuring GitHub CLI authentication..."
+    # Temporarily disable command tracing to avoid logging the token
+    set +x
+    echo "$GITHUB_TOKEN" | gh auth login --with-token 2>/dev/null
+    if gh auth status &>/dev/null; then
+        log_info "GitHub CLI authenticated successfully"
+        # Get the authenticated user for display (without showing the token)
+        GH_USER=$(gh api user --jq .login 2>/dev/null || echo "authenticated")
+        log_info "Authenticated as: $GH_USER"
+    else
+        log_warn "GitHub CLI authentication failed - continuing without authentication"
+    fi
+    # Re-enable command tracing if it was on
+    set -x 2>/dev/null || true
+else
+    log_info "GitHub CLI installed but not authenticated"
+    log_info "To authenticate, run setup with --github-token or set GITHUB_TOKEN environment variable"
+    log_info "Create a token at: https://github.com/settings/tokens with 'repo' and 'read:org' scopes"
+fi
+
 # Clean up
 log_info "Cleaning up..."
 apt-get autoremove -y
@@ -306,6 +331,9 @@ echo "npm: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && npm --versio
 echo "Claude Code: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && claude --version' 2>/dev/null || echo "installed")"
 echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/dev/null || echo "installed")"
 echo "GitHub CLI: $(gh --version 2>/dev/null | head -1 || echo "installed")"
+if [ -n "$GITHUB_TOKEN" ] && gh auth status &>/dev/null; then
+    echo "GitHub CLI Auth: Configured"
+fi
 echo ""
 echo "User: $SETUP_USER"
 
