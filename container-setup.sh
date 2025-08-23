@@ -135,6 +135,21 @@ fi
 
 log_info "Node.js LTS installed via nvm"
 
+# Install uv (Python package manager)
+log_info "Installing uv..."
+sudo -u "$SETUP_USER" bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+
+# Make uv available in user's shell
+if ! grep -q "uv" "$USER_HOME/.bashrc"; then
+    cat >> "$USER_HOME/.bashrc" << 'UVEOF'
+
+# uv configuration
+export PATH="$HOME/.local/bin:$PATH"
+UVEOF
+fi
+
+log_info "uv installed"
+
 # Setup SSH if requested
 if [ "$INSTALL_SSH" = "true" ]; then
     log_info "Installing and configuring SSH server..."
@@ -202,6 +217,7 @@ echo "========================================="
 echo "Python: $(python3 --version)"
 echo "Node.js: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && node --version' 2>/dev/null || echo "via nvm")"
 echo "npm: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && npm --version' 2>/dev/null || echo "via nvm")"
+echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/dev/null || echo "installed")"
 echo ""
 echo "User: $SETUP_USER"
 
