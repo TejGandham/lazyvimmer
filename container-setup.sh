@@ -66,7 +66,20 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     lsb-release \
     unzip \
     tar \
-    gzip
+    gzip \
+    locales
+
+# Configure locale settings
+log_info "Configuring locale settings..."
+# Generate en_US.UTF-8 locale if not exists
+if ! locale -a | grep -q "en_US.utf8"; then
+    locale-gen en_US.UTF-8
+fi
+# Set default locale
+update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+# Export for current session
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
 
 # Install Python 3.12
 log_info "Installing Python 3.12..."
@@ -148,6 +161,16 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 NVMEOF
+fi
+
+# Add locale settings to user's bashrc if not present
+if ! grep -q "export LANG=en_US.UTF-8" "$USER_HOME/.bashrc"; then
+    cat >> "$USER_HOME/.bashrc" << 'LOCALEEOF'
+
+# Locale settings
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+LOCALEEOF
 fi
 
 log_info "Node.js LTS installed/updated via nvm"

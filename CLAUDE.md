@@ -191,6 +191,7 @@ When making changes, verify:
 - Updates existing installations (nvm, uv, gh)
 - Preserves existing user configurations
 - Fixed SSH service name for Ubuntu 24.04 (uses 'ssh' not 'sshd')
+- Added locale configuration to fix locale warnings (en_US.UTF-8)
 
 ### v2.0
 - Added uv Python package manager
