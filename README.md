@@ -29,6 +29,7 @@ Lazyvimmer provides idempotent, secure scripts for setting up development contai
 - 🤖 **Claude Code CLI** - Anthropic's official AI assistant CLI
 - 📦 **uv Package Manager** - Ultra-fast Python package management
 - 🔧 **GitHub CLI** - Full GitHub operations from command line
+- 🐳 **Docker Support** (Optional) - Docker CE with Docker Compose v2
 - 🔐 **SSH Integration** - Secure access with GitHub key authentication
 - 🛡️ **Security First** - Unprivileged containers with random passwords
 
@@ -72,6 +73,12 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
   --name mydev \
   --github-user yourusername \
   --github-token "$GITHUB_TOKEN"
+
+# With Docker support
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup.sh | bash -s -- \
+  --name mydev \
+  --github-user yourusername \
+  --docker
 ```
 
 ### Options for proxmox-setup.sh
@@ -84,6 +91,7 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
 - `--storage NAME` - Storage pool (default: local-zfs)
 - `--github-user NAME` - GitHub username for SSH keys
 - `--github-token PAT` - GitHub Personal Access Token for gh CLI authentication
+- `--docker` - Install Docker CE and Docker Compose v2
 - `--force` - Force recreate if container with same name exists
 
 ### 2️⃣ Standalone Container Setup
@@ -104,6 +112,10 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/containe
 export GITHUB_TOKEN="your_personal_access_token"
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | \
   sudo GITHUB_TOKEN="$GITHUB_TOKEN" bash -s -- --github-user yourusername
+
+# With Docker support
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | \
+  sudo bash -s -- --docker
 ```
 
 ### Options for container-setup.sh
@@ -111,6 +123,7 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/containe
 - `--user NAME` - User to create (default: dev)
 - `--github-user NAME` - GitHub username for SSH keys
 - `--github-token PAT` - GitHub Personal Access Token for gh CLI authentication
+- `--docker` - Install Docker CE and Docker Compose v2
 - `--no-ssh` - Skip SSH server installation
 
 ## 🔑 Accessing Your Container
@@ -202,6 +215,36 @@ claude chat               # Start interactive session
 claude "explain this code" < script.py
 claude "write unit tests" --file app.js
 claude "review for security issues" --dir ./src
+```
+
+### Docker Development (Optional)
+
+When installed with `--docker` flag, Docker CE and Docker Compose v2 are available:
+
+```bash
+# Docker basics
+docker --version              # Check Docker version
+docker run hello-world        # Test Docker installation
+docker ps                     # List running containers
+docker images                # List available images
+
+# Docker Compose v2 (note: space, not hyphen)
+docker compose version        # Check Compose version
+docker compose up            # Start services defined in docker-compose.yml
+docker compose down          # Stop and remove containers
+docker compose logs          # View logs from services
+
+# Building and running containers
+docker build -t myapp .      # Build image from Dockerfile
+docker run -d -p 8080:80 myapp  # Run container in background
+docker exec -it <container> bash # Enter running container
+
+# Container management
+docker stop <container>      # Stop a running container
+docker rm <container>        # Remove stopped container
+docker rmi <image>          # Remove an image
+
+# Note: User 'dev' needs to logout/login for docker group to take effect
 ```
 
 ### GitHub CLI Integration

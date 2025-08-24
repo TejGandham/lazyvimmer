@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Proxmox CT Setup Script v2.0
-# Creates Ubuntu 24.04 LTS container with Python 3.12 and Node.js LTS
+# Proxmox CT Setup Script v2.4
+# Creates Ubuntu 24.04 LTS container with Python 3.12, Node.js LTS, and optional Docker
 
 # Color output
 RED='\033[0;31m'
@@ -30,6 +30,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
 START_AFTER_CREATE="${START_AFTER_CREATE:-true}"
 FORCE_RECREATE="${FORCE_RECREATE:-false}"
+INSTALL_DOCKER="${INSTALL_DOCKER:-false}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -42,6 +43,7 @@ while [[ $# -gt 0 ]]; do
         --storage) CT_STORAGE="$2"; shift 2 ;;
         --github-user) GITHUB_USERNAME="$2"; shift 2 ;;
         --github-token) GITHUB_TOKEN="$2"; shift 2 ;;
+        --docker) INSTALL_DOCKER="true"; shift ;;
         --force) FORCE_RECREATE="true"; shift ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
@@ -54,6 +56,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --storage NAME      Storage pool (default: local-zfs)"
             echo "  --github-user NAME  GitHub username for SSH keys"
             echo "  --github-token PAT  GitHub Personal Access Token for gh CLI authentication"
+            echo "  --docker            Install Docker CE and Docker Compose"
             echo "  --force             Force recreate if container exists"
             exit 0
             ;;
@@ -124,7 +127,7 @@ if pct status $CTID &>/dev/null 2>&1; then
     exit 1
 fi
 
-log_info "Proxmox CT Setup Script v2.0"
+log_info "Proxmox CT Setup Script v2.4"
 log_info "Configuration:"
 log_info "  CTID: $CTID"
 log_info "  Name: $CT_NAME"
@@ -135,6 +138,9 @@ log_info "  Storage: $CT_STORAGE"
 log_info "  Network: DHCP (vmbr0)"
 if [ -n "$GITHUB_USERNAME" ]; then
     log_info "  GitHub User: $GITHUB_USERNAME (for SSH keys)"
+fi
+if [ "$INSTALL_DOCKER" = "true" ]; then
+    log_info "  Docker: Will be installed with Docker Compose"
 fi
 
 # Download Ubuntu template if not exists
@@ -234,6 +240,9 @@ SETUP_ARGS="--user dev"
 if [ -n "$GITHUB_USERNAME" ]; then
     SETUP_ARGS="$SETUP_ARGS --github-user $GITHUB_USERNAME"
 fi
+if [ "$INSTALL_DOCKER" = "true" ]; then
+    SETUP_ARGS="$SETUP_ARGS --docker"
+fi
 if [ -n "$GITHUB_TOKEN" ]; then
     # Pass token securely via environment variable to avoid exposing in process list
     log_info "GitHub token will be configured in container"
@@ -267,6 +276,9 @@ if [ -n "$GITHUB_USERNAME" ]; then
 fi
 if [ -n "$GITHUB_TOKEN" ]; then
     log_info "  GitHub CLI: Authenticated"
+fi
+if [ "$INSTALL_DOCKER" = "true" ]; then
+    log_info "  Docker: Installed with Docker Compose v2"
 fi
 log_info ""
 log_info "Root password: $CT_PASSWORD"

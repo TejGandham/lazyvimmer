@@ -12,6 +12,7 @@ Production-ready, idempotent scripts for creating minimal development containers
 - **Package Manager**: uv for Python package management
 - **Claude Code CLI**: Anthropic's official CLI tool
 - **GitHub CLI**: gh command with optional PAT authentication
+- **Docker** (Optional): Docker CE with Docker Compose v2 plugin
 - **User**: 'dev' user with sudo access
 - **SSH**: GitHub key authentication support
 - **Networking**: DHCP only (vmbr0 bridge)
@@ -43,7 +44,7 @@ lazyvimmer/
 
 ## Scripts
 
-### proxmox-setup.sh (v2.3)
+### proxmox-setup.sh (v2.4)
 Runs on Proxmox host to create and configure containers:
 - Auto-detects available container ID (100-999)
 - Checks for existing containers by name (idempotent)
@@ -52,11 +53,13 @@ Runs on Proxmox host to create and configure containers:
 - Configures networking with DHCP on vmbr0 bridge
 - Fetches SSH keys from GitHub
 - Optionally configures GitHub CLI authentication via PAT
+- Optionally installs Docker CE and Docker Compose v2
 - Generates secure random passwords for root and dev users
 - Downloads and executes full container-setup.sh from repository
 - Displays container IP address after creation
 
 Key features:
+- `--docker` flag to install Docker CE and Docker Compose v2
 - `--force` flag to recreate existing containers
 - Automatic template detection from `pveam available`
 - No fallback to older Ubuntu versions (fails if 24.04 unavailable)
@@ -71,6 +74,7 @@ Standalone script for configuring any Ubuntu 24.04 container:
 - Installs Claude Code CLI (@anthropic-ai/claude-code)
 - Installs uv for Python package management
 - Installs GitHub CLI (gh command) with optional PAT authentication
+- Optionally installs Docker CE and Docker Compose v2 plugin
 - Creates user with sudo access (NOPASSWD)
 - Configures SSH with GitHub key support
 - Generates random passwords
@@ -85,6 +89,8 @@ Standalone script for configuring any Ubuntu 24.04 container:
 - Prevents duplicate GitHub SSH keys
 - Only installs GitHub CLI if not present, updates if exists
 - Configures GitHub CLI authentication if token provided
+- Checks if Docker is already installed, updates if present
+- Only adds user to docker group if not already a member
 - Preserves existing configurations
 
 Can be run independently in Docker containers or existing VMs. Safe for updating existing containers with new features.
@@ -131,11 +137,22 @@ Can be run independently in Docker containers or existing VMs. Safe for updating
 - Reduces setup complexity and errors
 - Static IPs can be configured post-setup if needed
 
+### Docker Installation Strategy (Optional)
+**Official APT Repository Method**
+- Uses Docker's official GPG key and APT repository for Ubuntu 24.04
+- Installs Docker CE, Docker CLI, containerd, and plugins
+- Docker Compose v2 installed as plugin (docker-compose-plugin)
+- Invoked as `docker compose` (space, not hyphen) - modern approach
+- User added to docker group for non-root container management
+- Nesting already enabled in LXC for Docker compatibility
+
 ### Idempotency Implementation
 - User existence checks before creation
 - Package installation checks prevent duplicates
 - Configuration file modifications are conditional
 - SSH key deduplication prevents accumulation
+- Docker installation checks prevent reinstallation
+- Docker group membership verified before adding
 - Service restarts only when necessary
 
 ## Common Issues and Solutions
@@ -292,6 +309,7 @@ pct exec <CTID> -- journalctl | grep -i token
   --storage NAME      Storage pool (default: local-zfs)
   --github-user NAME  GitHub username for SSH keys
   --github-token PAT  GitHub Personal Access Token for gh CLI authentication
+  --docker            Install Docker CE and Docker Compose v2
   --force             Force recreate if container exists
 ```
 
@@ -301,6 +319,7 @@ pct exec <CTID> -- journalctl | grep -i token
   --user NAME         User to create (default: dev)
   --github-user NAME  GitHub username for SSH keys
   --github-token PAT  GitHub Personal Access Token for gh CLI authentication
+  --docker            Install Docker CE and Docker Compose v2
   --no-ssh           Skip SSH server installation
 ```
 
@@ -382,7 +401,15 @@ pct exec <CTID> -- su - dev -c "uv pip install --upgrade pip setuptools wheel"
 
 ## Version History
 
-### v2.3 (Current)
+### v2.4 (Current)
+- Added optional Docker CE and Docker Compose v2 support
+- Docker installed via official APT repository method (not get.docker.com)
+- Docker Compose v2 installed as plugin (docker-compose-plugin package)
+- Idempotent Docker installation with update checking
+- User automatically added to docker group
+- Leverages existing nesting configuration for LXC compatibility
+
+### v2.3
 - Added GitHub CLI authentication support via Personal Access Tokens (PAT)
 - Updated proxmox-setup.sh to download container-setup.sh from repository
 - Secure token handling with environment variables

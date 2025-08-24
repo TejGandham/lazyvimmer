@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Container Setup Script
-# Sets up Python 3.12, Node.js LTS, and development tools
+# Container Setup Script v2.4
+# Sets up Python 3.12, Node.js LTS, optional Docker, and development tools
 # Can be run inside any Ubuntu 24.04 container or VM
 
 # Color output
@@ -21,6 +21,7 @@ SETUP_USER="${SETUP_USER:-dev}"
 GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 INSTALL_SSH="${INSTALL_SSH:-true}"
+INSTALL_DOCKER="${INSTALL_DOCKER:-false}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -29,6 +30,7 @@ while [[ $# -gt 0 ]]; do
         --github-user) GITHUB_USERNAME="$2"; shift 2 ;;
         --github-token) GITHUB_TOKEN="$2"; shift 2 ;;
         --no-ssh) INSTALL_SSH="false"; shift ;;
+        --docker) INSTALL_DOCKER="true"; shift ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
@@ -36,6 +38,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --github-user NAME  GitHub username for SSH keys"
             echo "  --github-token PAT  GitHub Personal Access Token for gh CLI authentication"
             echo "  --no-ssh           Skip SSH server installation"
+            echo "  --docker           Install Docker CE and Docker Compose"
             exit 0
             ;;
         *) log_error "Unknown option: $1"; exit 1 ;;
@@ -314,6 +317,75 @@ else
     log_info "Create a token at: https://github.com/settings/tokens with 'repo' and 'read:org' scopes"
 fi
 
+# Install Docker CE and Docker Compose if requested
+if [ "$INSTALL_DOCKER" = "true" ]; then
+    log_info "Installing Docker CE and Docker Compose..."
+    
+    # Check if Docker is already installed
+    if command -v docker &>/dev/null; then
+        log_info "Docker is already installed, checking for updates..."
+        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --only-upgrade docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y 2>/dev/null || true
+    else
+        # Install prerequisites for Docker repository
+        log_info "Installing Docker prerequisites..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            gnupg
+        
+        # Add Docker's official GPG key
+        log_info "Adding Docker GPG key..."
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+        
+        # Add Docker repository for Ubuntu 24.04 (noble)
+        log_info "Adding Docker repository..."
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" | \
+            tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
+        # Update package index
+        apt-get update
+        
+        # Install Docker packages including Docker Compose v2 plugin
+        log_info "Installing Docker CE, CLI, containerd, and Docker Compose plugin..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            docker-ce \
+            docker-ce-cli \
+            containerd.io \
+            docker-buildx-plugin \
+            docker-compose-plugin
+        
+        # Enable and start Docker service
+        systemctl enable docker
+        systemctl start docker
+    fi
+    
+    # Add user to docker group if not already a member
+    if ! groups "$SETUP_USER" | grep -q docker; then
+        log_info "Adding $SETUP_USER to docker group..."
+        usermod -aG docker "$SETUP_USER"
+        log_info "User $SETUP_USER added to docker group (logout required to take effect)"
+    else
+        log_info "User $SETUP_USER already in docker group"
+    fi
+    
+    # Verify Docker installation
+    if docker --version &>/dev/null; then
+        log_info "Docker installed successfully: $(docker --version | head -1)"
+    else
+        log_warn "Docker installation verification failed"
+    fi
+    
+    # Verify Docker Compose plugin installation
+    if docker compose version &>/dev/null; then
+        log_info "Docker Compose installed successfully: $(docker compose version)"
+    else
+        log_warn "Docker Compose installation verification failed"
+    fi
+fi
+
 # Clean up
 log_info "Cleaning up..."
 apt-get autoremove -y
@@ -333,6 +405,10 @@ echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/
 echo "GitHub CLI: $(gh --version 2>/dev/null | head -1 || echo "installed")"
 if [ -n "$GITHUB_TOKEN" ] && gh auth status &>/dev/null; then
     echo "GitHub CLI Auth: Configured"
+fi
+if [ "$INSTALL_DOCKER" = "true" ]; then
+    echo "Docker: $(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',' || echo "installed")"
+    echo "Docker Compose: $(docker compose version 2>/dev/null | awk '{print $4}' || echo "installed")"
 fi
 echo ""
 echo "User: $SETUP_USER"
