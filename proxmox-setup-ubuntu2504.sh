@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Proxmox CT Setup Script v3.0 - Ubuntu Server 25.04 Edition (Two-Phase)
-# Creates Ubuntu Server 25.04 container - Phase 1: Container creation only
-# Phase 2: Manual setup via SSH - provides setup command to run inside container
+# Phase 1: Creates Ubuntu Server 25.04 container with dev user and SSH keys
+# Phase 2: Manual setup via SSH - installs development tools and applications
 
 # Color output
 RED='\033[0;31m'
@@ -226,21 +226,55 @@ done
 log_info "Installing SSH server and curl for access..."
 pct exec $CTID -- bash -c "apt update && apt install -y openssh-server curl"
 
-# Configure and start SSH server for immediate access
-log_info "Configuring SSH server..."
+# Generate dev user password for display (same method as container-setup script)
+DEV_PASSWORD=$(openssl rand -base64 12)
+
+# Create dev user and setup SSH access (Phase 1)
+log_info "Creating dev user and configuring SSH..."
 pct exec $CTID -- bash -c "
-    # Configure SSH for root login (Phase 1 only - Phase 2 will disable this)
-    sed -i 's/#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    # Create dev user with sudo access
+    if ! id dev &>/dev/null; then
+        useradd -m -s /bin/bash -G sudo dev
+        echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+        echo 'dev:$DEV_PASSWORD' | chpasswd
+    fi
+    
+    # Configure SSH for dev user access (no root login)
+    sed -i 's/#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
     sed -i 's/#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
     sed -i 's/#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+    
+    # Setup SSH directory for dev user
+    mkdir -p /home/dev/.ssh
+    touch /home/dev/.ssh/authorized_keys
+    chmod 700 /home/dev/.ssh
+    chmod 600 /home/dev/.ssh/authorized_keys
+    chown -R dev:dev /home/dev/.ssh
     
     # Start and enable SSH service
     systemctl start ssh
     systemctl enable ssh
 "
 
-# Generate dev user password for display (same method as container-setup script)
-DEV_PASSWORD=$(openssl rand -base64 12)
+# Add GitHub SSH keys if username provided
+if [ -n "$GITHUB_USERNAME" ]; then
+    log_info "Fetching SSH keys from GitHub user: $GITHUB_USERNAME"
+    GITHUB_KEYS=$(curl -fsSL "https://github.com/${GITHUB_USERNAME}.keys" 2>/dev/null || true)
+    if [ -n "$GITHUB_KEYS" ]; then
+        # Add keys to dev user's authorized_keys
+        pct exec $CTID -- bash -c "
+            while IFS= read -r key; do
+                if ! grep -qF \"\$key\" /home/dev/.ssh/authorized_keys 2>/dev/null; then
+                    echo \"\$key\" >> /home/dev/.ssh/authorized_keys
+                fi
+            done <<< '$GITHUB_KEYS'
+            chown -R dev:dev /home/dev/.ssh
+        "
+        log_info "GitHub SSH keys added for $GITHUB_USERNAME"
+    else
+        log_warn "Could not fetch SSH keys from GitHub"
+    fi
+fi
 
 # Build setup command with arguments for display
 SETUP_ARGS="--user dev --user-password $DEV_PASSWORD"
@@ -265,16 +299,20 @@ if [ -n "$CONTAINER_IP" ]; then
 fi
 log_info ""
 log_info "Root password: $CT_PASSWORD"
-log_info "Dev password (will be created): $DEV_PASSWORD"
+log_info "Dev password: $DEV_PASSWORD"
 log_info ""
 log_info "IMPORTANT: Save these passwords securely!"
 log_info ""
 log_info "========================================="
 log_info "NEXT STEPS:"
 log_info "========================================="
-log_info "1. SSH into the container as root:"
-log_info "   ssh root@${CONTAINER_IP:-<CONTAINER_IP>}"
-log_info "   (SSH server is running and configured for root access during Phase 1)"
+log_info "1. SSH into the container as dev user:"
+log_info "   ssh dev@${CONTAINER_IP:-<CONTAINER_IP>}"
+if [ -n "$GITHUB_USERNAME" ]; then
+    log_info "   (SSH keys from GitHub user '$GITHUB_USERNAME' are configured)"
+else
+    log_info "   (Use the dev password shown above)"
+fi
 log_info ""
 log_info "2. Run the setup script:"
 if [ -n "$GITHUB_TOKEN" ]; then
@@ -290,17 +328,17 @@ else
 fi
 log_info ""
 log_info "This will install Python 3.13.3, Node.js 20.18.1, Claude Code CLI, GitHub CLI,"
-log_info "uv package manager, and create the 'dev' user with the password shown above."
+log_info "and uv package manager in the existing 'dev' user environment."
 if [ "$INSTALL_DOCKER" = "true" ]; then
     log_info "Docker CE and Docker Compose v2 will also be installed."
 fi
 if [ -n "$GITHUB_USERNAME" ]; then
-    log_info "SSH keys will be fetched from GitHub user: $GITHUB_USERNAME"
+    log_info "SSH keys fetched from GitHub user: $GITHUB_USERNAME"
 fi
 if [ -n "$GITHUB_TOKEN" ]; then
     log_info "GitHub CLI will be authenticated with your token."
 fi
 log_info ""
-log_info "SECURITY NOTE: Phase 2 setup will disable root SSH login and"
-log_info "configure secure access via the 'dev' user for ongoing use."
+log_info "SECURITY NOTE: Container is configured with secure 'dev' user access."
+log_info "Root SSH login is disabled for security. Phase 2 installs development tools."
 log_info "========================================="

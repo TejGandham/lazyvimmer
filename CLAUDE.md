@@ -108,27 +108,105 @@ Standalone script for configuring any Ubuntu 24.04 container:
 
 Can be run independently in Docker containers or existing VMs. Safe for updating existing containers with new features.
 
+### proxmox-setup-ubuntu2504.sh (v3.0) - Improved Two-Phase Setup
+
+Runs on Proxmox host to create Ubuntu Server 25.04 containers with enhanced control:
+
+**Phase 1** - Container Creation + Dev User + SSH Access:
+- Auto-detects available container ID (100-999)
+- Checks for existing containers by name (idempotent)
+- Downloads Ubuntu Server 25.04 template from Proxmox repository
+- Creates unprivileged container with nesting enabled
+- Configures networking with DHCP on vmbr0 bridge
+- **Creates dev user with sudo access immediately**
+- **Fetches and configures GitHub SSH keys in Phase 1**
+- **Disables root SSH login for security**
+- **Provides direct dev user SSH access** - no temporary root access
+- Installs curl for Phase 2 script download
+
+**Phase 2** - Manual Development Environment Setup:
+- User SSH's into container as dev user using configured credentials/keys
+- Runs provided curl command to execute container-setup-ubuntu2504.sh
+- Complete development environment configuration (Python, Node.js, tools)
+- Same functionality as Ubuntu 24.04 but with Ubuntu 25.04 packages
+
+Key features:
+- `--docker` flag to install Docker CE and Docker Compose v2
+- `--force` flag to recreate existing containers
+- Automatic Ubuntu Server 25.04 template detection from `pveam available`
+- **Enhanced security** - dev user created immediately, no root SSH access
+- **Improved UX** - SSH directly as dev user after Phase 1
+- Clear separation between infrastructure (Phase 1) and application (Phase 2) setup
+
+### container-setup-ubuntu2504.sh (v3.0) - Optimized with Native Packages
+
+Standalone script for configuring any Ubuntu Server 25.04 container:
+
+**Ubuntu 25.04-Specific Optimizations:**
+- Uses native **APT packages** instead of external sources where possible
+- **Node.js & npm**: Direct `apt install nodejs npm` (Node.js 20.18.1)
+- **GitHub CLI**: Direct `apt install gh` from Ubuntu repos (faster than Ubuntu 24.04)
+- **Faster installation** - no complex nvm setup needed
+- **System-wide availability** - no user-specific shell configuration needed
+
+**Phase 2 Focus** (assumes dev user exists from Phase 1):
+- Verifies dev user exists (created in Phase 1)
+- Updates system packages via apt
+- Installs Python 3.13.3 and pip
+- Installs Node.js 20.18.1 and npm via native packages
+- Installs Claude Code CLI (@anthropic-ai/claude-code) via npm
+- Installs uv for Python package management via curl
+- Installs GitHub CLI (gh command) with optional PAT authentication
+- Optionally installs Docker CE and Docker Compose v2 plugin
+- Verifies SSH setup (already configured in Phase 1)
+- Installs additional dev tools (vim, nano, htop, net-tools, etc.)
+
+**Key Differences from Ubuntu 24.04:**
+- **Assumes dev user exists** - validates instead of creating
+- Uses native `apt install nodejs npm` instead of nvm
+- Uses `apt install gh` instead of external repository setup
+- **Enhanced security model** - no user creation in Phase 2
+- Optimized for Ubuntu Server 25.04 package versions
+
+Can be run independently in Docker containers or existing VMs, but designed to work with Phase 1 user setup.
+
 ## Design Decisions & Rationale
 
 ### Operating System Choice
-**Ubuntu 24.04 LTS (no fallback)**
+
+**Dual Ubuntu Distribution Strategy**
+
+**Ubuntu 24.04 LTS** - Stability & Enterprise Focus
 - Python 3.12 available in main repositories (no PPA needed)
-- 5-year support cycle (until April 2029)
+- 5-year support cycle (until April 2029)  
 - Predictable package versions for reproducible builds
 - Failing fast on unavailable templates prevents silent degradation
+- **Best for**: Production environments, enterprise deployments, long-term projects
+
+**Ubuntu Server 25.04** - Latest Features & Performance Focus
+- Python 3.13.3 available in main repositories (latest features)
+- Native Node.js 20.18.1 packages (faster installation than nvm)
+- APT 3.0 with improved dependency resolver and colorful output
+- 9-month support cycle (until January 2026)
+- **Best for**: Development environments, latest features, cutting-edge development
 
 ### Package Management Strategy
-**Node.js via nvm**
-- User-space installation allows version updates without root
-- Multiple Node.js versions can coexist
-- Consistent with Node.js community best practices
-- Automatic latest LTS selection ensures security updates
 
-**Python via system + uv**
-- System Python 3.12 for stability
-- uv for 10-100x faster package installation than pip
+**Ubuntu 24.04 LTS - External Sources Approach**
+- **Node.js via nvm**: User-space installation, multiple versions, community best practices
+- **GitHub CLI**: Via official GitHub repository for latest features
+- **Python via system + uv**: System Python 3.12 + uv for fast package management
+
+**Ubuntu Server 25.04 - Native Packages Approach**  
+- **Node.js via apt**: System-wide installation, faster setup, native Ubuntu packages
+- **GitHub CLI**: Via native Ubuntu repositories for better integration
+- **Python via system + uv**: System Python 3.13.3 + uv for fast package management
+
+**Common Strategy**
+- System Python + uv for 10-100x faster package installation than pip
 - Virtual environment support built-in
 - Compatible with existing requirements.txt workflows
+- Docker CE via official Docker repository (both distributions)
 
 ### Security Architecture
 **Random Password Generation**

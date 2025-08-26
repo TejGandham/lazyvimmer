@@ -142,8 +142,8 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
 
 **Phase 2** - SSH into container and run setup:
 ```bash
-# SSH into the container (get IP from Phase 1 output)
-ssh root@<CONTAINER_IP>
+# SSH into the container as dev user (get IP from Phase 1 output)
+ssh dev@<CONTAINER_IP>
 
 # Run the application setup script
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | bash -s -- \
@@ -165,10 +165,12 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/containe
 ```
 
 **What you get:**
-- ✅ **Python 3.13.3** - Latest stable Python with newest features
-- ✅ **Node.js 20.18.1** - Native apt package (faster installation)
+- ✅ **Secure dev user** - Created in Phase 1 with GitHub SSH keys
+- ✅ **Direct SSH access** - No temporary root access needed
+- ✅ **Python 3.13.3** - Latest stable Python with newest features (Phase 2)
+- ✅ **Node.js 20.18.1** - Native apt package (faster installation, Phase 2)
 - ✅ **APT 3.0** - Improved dependency resolver and colorful output
-- ✅ **Two-phase setup** - Better control over container creation vs application setup
+- ✅ **Two-phase setup** - Better control and security
 - ✅ **9-month support** - Until January 2026
 
 ### 2️⃣ Standalone Container Setup

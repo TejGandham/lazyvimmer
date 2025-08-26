@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Container Setup Script v3.0 - Ubuntu Server 25.04 Edition (Two-Phase)
+# Container Setup Script v3.0 - Ubuntu Server 25.04 Edition (Two-Phase)  
 # Phase 2: Sets up Python 3.13.3, Node.js 20.18.1, optional Docker, and development tools
-# Can be run inside any Ubuntu Server 25.04 container or VM
+# Assumes dev user already exists (created in Phase 1)
 # Uses native Ubuntu packages for faster, simpler installation
 
 # Color output
@@ -103,28 +103,25 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
 PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
 log_info "Python installed: $PYTHON_VERSION"
 
-# Create user if it doesn't exist
+# Verify user exists (should be created in Phase 1)
 if ! id "$SETUP_USER" &>/dev/null; then
-    log_info "Creating user: $SETUP_USER"
-    useradd -m -s /bin/bash -G sudo "$SETUP_USER"
-    echo "$SETUP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SETUP_USER"
-    
-    # Use provided password or generate random one
-    if [ -z "$USER_PASSWORD" ]; then
-        USER_PASSWORD=$(openssl rand -base64 12)
-    fi
+    log_error "User $SETUP_USER does not exist! This should have been created in Phase 1."
+    log_error "Please run the proxmox-setup-ubuntu2504.sh script first."
+    exit 1
+fi
+
+log_info "User $SETUP_USER exists - continuing with development environment setup"
+
+# Ensure user has proper sudo access
+usermod -aG sudo "$SETUP_USER" 2>/dev/null || true
+echo "$SETUP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SETUP_USER"
+
+# Use provided password or indicate existing user
+if [ -n "$USER_PASSWORD" ]; then
     echo "$SETUP_USER:$USER_PASSWORD" | chpasswd
-    
-    # Save password for display later
-    echo "$USER_PASSWORD" > /tmp/user_password.txt
-    chmod 600 /tmp/user_password.txt
-else
-    log_info "User $SETUP_USER already exists"
     echo "existing" > /tmp/user_password.txt
-    
-    # Ensure user is in sudo group and has NOPASSWD access
-    usermod -aG sudo "$SETUP_USER" 2>/dev/null || true
-    echo "$SETUP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SETUP_USER"
+else
+    echo "existing" > /tmp/user_password.txt
 fi
 
 # Set user home directory
@@ -189,52 +186,25 @@ fi
 
 log_info "uv installed/updated"
 
-# Setup SSH if requested
+# Verify SSH setup (already configured in Phase 1)
 if [ "$INSTALL_SSH" = "true" ]; then
-    log_info "Configuring SSH server security..."
-    # SSH server already installed in Phase 1, just ensure it's present
-    DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
+    log_info "SSH server and dev user access already configured in Phase 1"
     
-    # Configure SSH securely (disable root login now that dev user will be created)
-    sed -i 's/#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-    sed -i 's/#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    sed -i 's/#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-    
-    # Restart SSH service to apply security changes
-    systemctl restart ssh
-    systemctl enable ssh
-    
-    # Setup SSH directory for user
-    USER_HOME="/home/$SETUP_USER"
-    if [ "$SETUP_USER" = "root" ]; then
-        USER_HOME="/root"
-    fi
-    
-    mkdir -p "$USER_HOME/.ssh"
-    touch "$USER_HOME/.ssh/authorized_keys"
-    chmod 700 "$USER_HOME/.ssh"
-    chmod 600 "$USER_HOME/.ssh/authorized_keys"
-    
-    # Add GitHub SSH keys if username provided
+    # Add additional GitHub SSH keys if username provided and not already added
     if [ -n "$GITHUB_USERNAME" ]; then
-        log_info "Fetching SSH keys from GitHub user: $GITHUB_USERNAME"
+        log_info "Checking for additional SSH keys from GitHub user: $GITHUB_USERNAME"
         GITHUB_KEYS=$(curl -fsSL "https://github.com/${GITHUB_USERNAME}.keys" 2>/dev/null || true)
         if [ -n "$GITHUB_KEYS" ]; then
             # Check if keys are already present to avoid duplicates
             while IFS= read -r key; do
                 if ! grep -qF "$key" "$USER_HOME/.ssh/authorized_keys" 2>/dev/null; then
                     echo "$key" >> "$USER_HOME/.ssh/authorized_keys"
+                    log_info "Added new SSH key from GitHub"
                 fi
             done <<< "$GITHUB_KEYS"
-            log_info "GitHub SSH keys synchronized for $GITHUB_USERNAME"
-        else
-            log_warn "Could not fetch SSH keys from GitHub"
+            # Fix ownership
+            chown -R "$SETUP_USER:$SETUP_USER" "$USER_HOME/.ssh"
         fi
-    fi
-    
-    # Fix ownership
-    if [ "$SETUP_USER" != "root" ]; then
-        chown -R "$SETUP_USER:$SETUP_USER" "$USER_HOME/.ssh"
     fi
 fi
 
