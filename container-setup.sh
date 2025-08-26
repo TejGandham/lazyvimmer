@@ -298,19 +298,50 @@ fi
 # Configure GitHub CLI authentication if token provided
 if [ -n "$GITHUB_TOKEN" ]; then
     log_info "Configuring GitHub CLI authentication..."
-    # Temporarily disable command tracing to avoid logging the token
-    set +x
-    echo "$GITHUB_TOKEN" | gh auth login --with-token 2>/dev/null
-    if gh auth status &>/dev/null; then
-        log_info "GitHub CLI authenticated successfully"
-        # Get the authenticated user for display (without showing the token)
-        GH_USER=$(gh api user --jq .login 2>/dev/null || echo "authenticated")
-        log_info "Authenticated as: $GH_USER"
-    else
-        log_warn "GitHub CLI authentication failed - continuing without authentication"
+    
+    # Validate token format (GitHub PATs start with ghp_, gho_, ghu_, ghs_, ghr_, or are 40-char classic tokens)
+    if [[ ! "$GITHUB_TOKEN" =~ ^(ghp_|gho_|ghu_|ghs_|ghr_)[A-Za-z0-9_]{36}$ ]] && [[ ! "$GITHUB_TOKEN" =~ ^[a-f0-9]{40}$ ]]; then
+        log_warn "GitHub token format appears invalid. Expected: ghp_xxxx... or 40-character hex string"
+        log_warn "Authentication may fail. Proceeding anyway..."
     fi
-    # Re-enable command tracing if it was on
-    set -x 2>/dev/null || true
+    
+    # Attempt authentication
+    if echo "$GITHUB_TOKEN" | gh auth login --with-token 2>/tmp/gh_auth_error.log; then
+        log_info "GitHub CLI token accepted"
+        
+        # Verify authentication works
+        if gh auth status >/dev/null 2>&1; then
+            # Get the authenticated user for display
+            GH_USER=$(gh api user --jq .login 2>/dev/null || echo "authenticated")
+            log_info "GitHub CLI authenticated successfully as: $GH_USER"
+            
+            # Test API access
+            if gh api user >/dev/null 2>&1; then
+                log_info "GitHub API access verified"
+            else
+                log_warn "GitHub authentication succeeded but API access failed"
+                log_warn "Token may have insufficient scopes"
+            fi
+        else
+            log_warn "GitHub CLI login succeeded but authentication status check failed"
+            if [ -f /tmp/gh_auth_error.log ]; then
+                log_warn "Error details: $(cat /tmp/gh_auth_error.log | head -3)"
+            fi
+        fi
+    else
+        log_error "GitHub CLI authentication failed"
+        if [ -f /tmp/gh_auth_error.log ]; then
+            log_error "Error details: $(cat /tmp/gh_auth_error.log | head -3)"
+        fi
+        log_error "Common issues:"
+        log_error "  - Invalid token format or expired token"
+        log_error "  - Token missing required scopes (need: repo, read:org)"
+        log_error "  - Network connectivity issues"
+        log_warn "Continuing without GitHub CLI authentication"
+    fi
+    
+    # Cleanup
+    rm -f /tmp/gh_auth_error.log
 else
     log_info "GitHub CLI installed but not authenticated"
     log_info "To authenticate, run setup with --github-token or set GITHUB_TOKEN environment variable"
