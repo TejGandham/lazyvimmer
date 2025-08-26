@@ -2,13 +2,14 @@
 
 <div align="center">
 
-[![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS-E95420?style=flat&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS%2F25.04-E95420?style=flat&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
+[![Python](https://img.shields.io/badge/Python-3.12%2F3.13-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-LTS-339933?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Proxmox](https://img.shields.io/badge/Proxmox-VE-E57000?style=flat&logo=proxmox&logoColor=white)](https://www.proxmox.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compatible-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
 
-**Production-ready scripts for creating minimal development containers on Proxmox with Python 3.12 and Node.js LTS**
+**Production-ready scripts for creating minimal development containers on Proxmox**  
+**Supports Ubuntu 24.04 LTS and Ubuntu Server 25.04 with modern Python and Node.js**
 
 </div>
 
@@ -23,9 +24,10 @@ Lazyvimmer provides idempotent, secure scripts for setting up development contai
 ## ✨ Key Features
 
 ### Core Components
-- 🐧 **Ubuntu 24.04 LTS** - Latest stable base with long-term support
-- 🐍 **Python 3.12** - Modern Python from official repositories
-- 🟢 **Node.js LTS** - Latest stable Node.js via nvm v0.40.3
+- 🐧 **Ubuntu 24.04 LTS** - Stable base with 5-year support (Python 3.12)
+- 🐧 **Ubuntu Server 25.04** - Latest interim release (Python 3.13.3, 9-month support)
+- 🐍 **Modern Python** - 3.12 (Ubuntu LTS) / 3.13.3 (Ubuntu 25.04)
+- 🟢 **Node.js LTS** - Latest stable via nvm (Ubuntu LTS) or native packages (Ubuntu 25.04)
 - 🤖 **Claude Code CLI** - Anthropic's official AI assistant CLI
 - 📦 **uv Package Manager** - Ultra-fast Python package management
 - 🔧 **GitHub CLI** - Full GitHub operations from command line
@@ -45,11 +47,29 @@ Lazyvimmer provides idempotent, secure scripts for setting up development contai
 ### Prerequisites
 - **For Proxmox**: Proxmox VE 7.0+ with internet access
 - **For Docker**: Docker Engine 20.10+ or Docker Desktop
-- **For Standalone**: Any Ubuntu 24.04 system
+- **For Standalone**: Ubuntu 24.04 LTS or Ubuntu Server 25.04 system
 
 ## 📖 Usage
 
+Choose your preferred Ubuntu distribution:
+
+### 🐧 **Ubuntu 24.04 LTS** - Stability & Long-term Support
+- **Best for**: Production environments, enterprise, 5-year support lifecycle
+- **Python**: 3.12 (mature, stable)
+- **Node.js**: via nvm (multiple versions)
+- **Packages**: APT with PPA support
+
+### 🐧 **Ubuntu Server 25.04** - Latest Features & Performance
+- **Best for**: Development environments, latest features, 9-month support cycle
+- **Python**: 3.13.3 (newest stable)
+- **Node.js**: 20.18.1 via native apt (faster installation)
+- **Packages**: APT 3.0 with improved dependency resolver
+
+---
+
 ### 1️⃣ Proxmox Container Setup
+
+#### Ubuntu 24.04 LTS (Stable)
 
 > **Best for**: Production environments, team development servers, CI/CD runners
 
@@ -94,9 +114,68 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
 - `--docker` - Install Docker CE and Docker Compose v2
 - `--force` - Force recreate if container with same name exists
 
+#### Ubuntu Server 25.04 (Latest Features)
+
+> **Best for**: Development environments, latest features, cutting-edge Python
+
+**Two-phase setup for better control:**
+
+**Phase 1** - Create container with SSH access:
+```bash
+# Quick setup with defaults
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup-ubuntu2504.sh | bash
+
+# With custom options  
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup-ubuntu2504.sh | bash -s -- \
+  --name ubuntu2504-dev \
+  --memory 8192 \
+  --cores 4 \
+  --disk 50 \
+  --github-user yourusername
+
+# With Docker support
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup-ubuntu2504.sh | bash -s -- \
+  --name ubuntu2504-dev \
+  --github-user yourusername \
+  --docker
+```
+
+**Phase 2** - SSH into container and run setup:
+```bash
+# SSH into the container (get IP from Phase 1 output)
+ssh root@<CONTAINER_IP>
+
+# Run the application setup script
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | bash -s -- \
+  --user dev \
+  --github-user yourusername
+
+# With GitHub CLI authentication
+GITHUB_TOKEN="your_token" \
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | bash -s -- \
+  --user dev \
+  --github-user yourusername \
+  --github-token "$GITHUB_TOKEN"
+
+# With Docker support
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | bash -s -- \
+  --user dev \
+  --github-user yourusername \
+  --docker
+```
+
+**What you get:**
+- ✅ **Python 3.13.3** - Latest stable Python with newest features
+- ✅ **Node.js 20.18.1** - Native apt package (faster installation)
+- ✅ **APT 3.0** - Improved dependency resolver and colorful output
+- ✅ **Two-phase setup** - Better control over container creation vs application setup
+- ✅ **9-month support** - Until January 2026
+
 ### 2️⃣ Standalone Container Setup
 
 > **Best for**: Docker environments, existing VMs, cloud instances
+
+#### Ubuntu 24.04 LTS
 
 Run inside any Ubuntu 24.04 container:
 
@@ -115,6 +194,28 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/containe
 
 # With Docker support
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | \
+  sudo bash -s -- --docker
+```
+
+#### Ubuntu Server 25.04
+
+Run inside any Ubuntu Server 25.04 container:
+
+```bash
+# Inside any Ubuntu Server 25.04 container
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | sudo bash
+
+# With GitHub SSH keys
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | sudo bash -s -- \
+  --github-user yourusername
+
+# With GitHub CLI authentication
+export GITHUB_TOKEN="your_personal_access_token"
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | \
+  sudo GITHUB_TOKEN="$GITHUB_TOKEN" bash -s -- --github-user yourusername
+
+# With Docker support
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | \
   sudo bash -s -- --docker
 ```
 

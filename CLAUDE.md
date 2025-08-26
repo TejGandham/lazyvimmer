@@ -1,14 +1,25 @@
 # Lazyvimmer - Technical Documentation & AI Context
 
 ## Executive Summary
-Production-ready, idempotent scripts for creating minimal development containers on Proxmox with Python 3.12 and Node.js LTS. Designed as a foundation for various development environments with emphasis on security, reproducibility, and extensibility.
+Production-ready, idempotent scripts for creating minimal development containers on Proxmox with modern Python and Node.js. **Supports Ubuntu 24.04 LTS (stable) and Ubuntu Server 25.04 (latest)** - designed as a foundation for various development environments with emphasis on security, reproducibility, and extensibility.
 
 ## Current Architecture
 
 ### Core Components
-- **Base**: Ubuntu 24.04 LTS (no fallback)
+
+#### Ubuntu 24.04 LTS (Stable Branch)
+- **Base**: Ubuntu 24.04 LTS (5-year support, no fallback)
 - **Python**: 3.12 from official Ubuntu repositories
-- **Node.js**: Latest LTS via nvm v0.40.3
+- **Node.js**: Latest LTS via nvm v0.40.3 (multiple versions supported)
+- **Package Management**: APT with PPA support
+
+#### Ubuntu Server 25.04 (Latest Features Branch)
+- **Base**: Ubuntu Server 25.04 "Plucky Puffin" (9-month support until January 2026)
+- **Python**: 3.13.3 from official Ubuntu repositories
+- **Node.js**: 20.18.1 via native apt packages (faster installation)
+- **Package Management**: APT 3.0 with improved dependency resolver
+
+#### Common Components (Both Distributions)
 - **Package Manager**: uv for Python package management
 - **Claude Code CLI**: Anthropic's official CLI tool
 - **GitHub CLI**: gh command with optional PAT authentication
@@ -20,10 +31,12 @@ Production-ready, idempotent scripts for creating minimal development containers
 ### File Structure
 ```
 lazyvimmer/
-├── proxmox-setup.sh    # Proxmox host script for CT creation
-├── container-setup.sh  # Standalone container configuration
-├── README.md          # User documentation
-└── CLAUDE.md          # This file - AI context
+├── proxmox-setup.sh               # Ubuntu 24.04 LTS - Proxmox host script for CT creation
+├── container-setup.sh             # Ubuntu 24.04 LTS - Standalone container configuration  
+├── proxmox-setup-ubuntu2504.sh    # Ubuntu 25.04 - Proxmox host script (two-phase)
+├── container-setup-ubuntu2504.sh  # Ubuntu 25.04 - Standalone container configuration (two-phase)
+├── README.md                      # User documentation (updated for both distros)
+└── CLAUDE.md                      # This file - AI context
 ```
 
 ## Technical Implementation Details
