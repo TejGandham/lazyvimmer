@@ -232,8 +232,10 @@ if [ -n "$GITHUB_USERNAME" ]; then
 fi
 
 # Download and run the full container setup script
-log_info "Downloading container setup script..."
-pct exec $CTID -- bash -c "curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh -o /tmp/container-setup.sh && chmod +x /tmp/container-setup.sh"
+log_info "Installing curl and downloading container setup script..."
+pct exec $CTID -- bash -c "apt update && apt install -y curl"
+pct exec $CTID -- curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh -o /tmp/container-setup.sh
+pct exec $CTID -- chmod +x /tmp/container-setup.sh
 
 # Build setup command with arguments
 SETUP_ARGS="--user dev"
