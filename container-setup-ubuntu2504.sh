@@ -218,6 +218,29 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     iputils-ping \
     dnsutils
 
+# Install atuin (shell history tool) if not already installed
+if [ ! -f "$USER_HOME/.local/bin/atuin" ]; then
+    log_info "Installing atuin..."
+    sudo -u "$SETUP_USER" bash -c "curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh"
+else
+    log_info "atuin already installed"
+fi
+
+# Make atuin available in user's shell if not already configured
+if ! grep -q "atuin init bash" "$USER_HOME/.bashrc" 2>/dev/null; then
+    cat >> "$USER_HOME/.bashrc" << 'ATUINEOF'
+
+# atuin configuration
+if command -v atuin &> /dev/null; then
+    eval "$(atuin init bash)"
+fi
+ATUINEOF
+    chown "$SETUP_USER:$SETUP_USER" "$USER_HOME/.bashrc"
+    log_info "atuin shell integration added to .bashrc"
+fi
+
+log_info "atuin installed/configured"
+
 # Install GitHub CLI if not already installed
 if ! command -v gh &>/dev/null; then
     log_info "Installing GitHub CLI..."
@@ -366,6 +389,7 @@ echo "Node.js: $(node --version 2>/dev/null || echo "not found")"
 echo "npm: $(npm --version 2>/dev/null || echo "not found")"
 echo "Claude Code: $(claude --version 2>/dev/null || echo "installed")"
 echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/dev/null || echo "installed")"
+echo "atuin: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && atuin --version' 2>/dev/null || echo "installed")"
 echo "GitHub CLI: $(gh --version 2>/dev/null | head -1 || echo "installed")"
 if [ -n "$GITHUB_TOKEN" ] && gh auth status &>/dev/null; then
     echo "GitHub CLI Auth: Configured"
