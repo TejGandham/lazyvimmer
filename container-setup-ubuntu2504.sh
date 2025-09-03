@@ -389,7 +389,7 @@ echo "Node.js: $(node --version 2>/dev/null || echo "not found")"
 echo "npm: $(npm --version 2>/dev/null || echo "not found")"
 echo "Claude Code: $(claude --version 2>/dev/null || echo "installed")"
 echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/dev/null || echo "installed")"
-echo "atuin: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && atuin --version' 2>/dev/null || echo "installed")"
+echo "atuin: $(sudo -u "$SETUP_USER" bash -c '. ~/.bashrc && atuin --version 2>/dev/null' || echo "installed")"
 echo "GitHub CLI: $(gh --version 2>/dev/null | head -1 || echo "installed")"
 if [ -n "$GITHUB_TOKEN" ] && gh auth status &>/dev/null; then
     echo "GitHub CLI Auth: Configured"
