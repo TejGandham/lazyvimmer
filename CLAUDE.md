@@ -1,25 +1,19 @@
 # Lazyvimmer - Technical Documentation & AI Context
 
 ## Executive Summary
-Production-ready, idempotent scripts for creating minimal development containers on Proxmox with modern Python and Node.js. **Supports Ubuntu 24.04 LTS (stable) and Ubuntu Server 25.04 (latest)** - designed as a foundation for various development environments with emphasis on security, reproducibility, and extensibility.
+Production-ready, idempotent scripts for creating minimal development containers on Proxmox with modern Python and Node.js using **Ubuntu Server 25.04**. Designed as a foundation for various development environments with emphasis on security, reproducibility, and extensibility.
 
 ## Current Architecture
 
 ### Core Components
 
-#### Ubuntu 24.04 LTS (Stable Branch)
-- **Base**: Ubuntu 24.04 LTS (5-year support, no fallback)
-- **Python**: 3.12 from official Ubuntu repositories
-- **Node.js**: Latest LTS via nvm v0.40.3 (multiple versions supported)
-- **Package Management**: APT with PPA support
-
-#### Ubuntu Server 25.04 (Latest Features Branch)
+#### Ubuntu Server 25.04
 - **Base**: Ubuntu Server 25.04 "Plucky Puffin" (9-month support until January 2026)
 - **Python**: 3.13.3 from official Ubuntu repositories
 - **Node.js**: 20.18.1 via native apt packages (faster installation)
 - **Package Management**: APT 3.0 with improved dependency resolver
 
-#### Common Components (Both Distributions)
+#### Common Components
 - **Package Manager**: uv for Python package management
 - **Claude Code CLI**: Anthropic's official CLI tool
 - **GitHub CLI**: gh command with optional PAT authentication
@@ -31,12 +25,11 @@ Production-ready, idempotent scripts for creating minimal development containers
 ### File Structure
 ```
 lazyvimmer/
-├── proxmox-setup.sh               # Ubuntu 24.04 LTS - Proxmox host script for CT creation
-├── container-setup.sh             # Ubuntu 24.04 LTS - Standalone container configuration  
-├── proxmox-setup-ubuntu2504.sh    # Ubuntu 25.04 - Proxmox host script (two-phase)
-├── container-setup-ubuntu2504.sh  # Ubuntu 25.04 - Standalone container configuration (two-phase)
-├── README.md                      # User documentation (updated for both distros)
-└── CLAUDE.md                      # This file - AI context
+├── proxmox-setup.sh      # Proxmox host script for CT creation (two-phase)
+├── container-setup.sh    # Standalone container configuration (two-phase)
+├── create_patch.sh       # Script for creating patch files from staged changes
+├── README.md             # User documentation
+└── CLAUDE.md             # This file - AI context
 ```
 
 ## Technical Implementation Details
@@ -57,58 +50,7 @@ lazyvimmer/
 
 ## Scripts
 
-### proxmox-setup.sh (v2.4)
-Runs on Proxmox host to create and configure containers:
-- Auto-detects available container ID (100-999)
-- Checks for existing containers by name (idempotent)
-- Downloads Ubuntu 24.04 template from Proxmox repository
-- Creates unprivileged container with nesting enabled
-- Configures networking with DHCP on vmbr0 bridge
-- Fetches SSH keys from GitHub
-- Optionally configures GitHub CLI authentication via PAT
-- Optionally installs Docker CE and Docker Compose v2
-- Generates secure random passwords for root and dev users
-- Downloads and executes full container-setup.sh from repository
-- Displays container IP address after creation
-
-Key features:
-- `--docker` flag to install Docker CE and Docker Compose v2
-- `--force` flag to recreate existing containers
-- Automatic template detection from `pveam available`
-- No fallback to older Ubuntu versions (fails if 24.04 unavailable)
-- Downloads latest container-setup.sh from repository for consistency
-- Password display only during setup (not stored)
-
-### container-setup.sh
-Standalone script for configuring any Ubuntu 24.04 container:
-- Updates system packages
-- Installs Python 3.12 and pip
-- Installs Node.js LTS via nvm for the specified user
-- Installs Claude Code CLI (@anthropic-ai/claude-code)
-- Installs uv for Python package management
-- Installs GitHub CLI (gh command) with optional PAT authentication
-- Optionally installs Docker CE and Docker Compose v2 plugin
-- Creates user with sudo access (NOPASSWD)
-- Configures SSH with GitHub key support
-- Generates random passwords
-- Installs additional dev tools (vim, nano, htop, net-tools, etc.)
-
-**Idempotent Features** (safe to run multiple times):
-- Checks if user exists before creating
-- Ensures sudo permissions even for existing users
-- Detects existing nvm installation and updates Node.js to latest LTS
-- Installs or updates Claude Code CLI as needed
-- Updates uv if already installed
-- Prevents duplicate GitHub SSH keys
-- Only installs GitHub CLI if not present, updates if exists
-- Configures GitHub CLI authentication if token provided
-- Checks if Docker is already installed, updates if present
-- Only adds user to docker group if not already a member
-- Preserves existing configurations
-
-Can be run independently in Docker containers or existing VMs. Safe for updating existing containers with new features.
-
-### proxmox-setup-ubuntu2504.sh (v3.0) - Improved Two-Phase Setup
+### proxmox-setup.sh (v3.0) - Improved Two-Phase Setup
 
 Runs on Proxmox host to create Ubuntu Server 25.04 containers with enhanced control:
 
@@ -126,9 +68,8 @@ Runs on Proxmox host to create Ubuntu Server 25.04 containers with enhanced cont
 
 **Phase 2** - Manual Development Environment Setup:
 - User SSH's into container as dev user using configured credentials/keys
-- Runs provided curl command to execute container-setup-ubuntu2504.sh
+- Runs provided curl command to execute container-setup.sh
 - Complete development environment configuration (Python, Node.js, tools)
-- Same functionality as Ubuntu 24.04 but with Ubuntu 25.04 packages
 
 Key features:
 - `--docker` flag to install Docker CE and Docker Compose v2
@@ -138,7 +79,7 @@ Key features:
 - **Improved UX** - SSH directly as dev user after Phase 1
 - Clear separation between infrastructure (Phase 1) and application (Phase 2) setup
 
-### container-setup-ubuntu2504.sh (v3.0) - Optimized with Native Packages
+### container-setup.sh (v3.0) - Optimized with Native Packages
 
 Standalone script for configuring any Ubuntu Server 25.04 container:
 
@@ -161,10 +102,10 @@ Standalone script for configuring any Ubuntu Server 25.04 container:
 - Verifies SSH setup (already configured in Phase 1)
 - Installs additional dev tools (vim, nano, htop, net-tools, etc.)
 
-**Key Differences from Ubuntu 24.04:**
-- **Assumes dev user exists** - validates instead of creating
-- Uses native `apt install nodejs npm` instead of nvm
-- Uses `apt install gh` instead of external repository setup
+**Key Features:**
+- **Assumes dev user exists** - validates instead of creating (Phase 1 setup)
+- Uses native `apt install nodejs npm` for simpler installation
+- Uses `apt install gh` from Ubuntu repositories
 - **Enhanced security model** - no user creation in Phase 2
 - Optimized for Ubuntu Server 25.04 package versions
 
@@ -173,15 +114,6 @@ Can be run independently in Docker containers or existing VMs, but designed to w
 ## Design Decisions & Rationale
 
 ### Operating System Choice
-
-**Dual Ubuntu Distribution Strategy**
-
-**Ubuntu 24.04 LTS** - Stability & Enterprise Focus
-- Python 3.12 available in main repositories (no PPA needed)
-- 5-year support cycle (until April 2029)  
-- Predictable package versions for reproducible builds
-- Failing fast on unavailable templates prevents silent degradation
-- **Best for**: Production environments, enterprise deployments, long-term projects
 
 **Ubuntu Server 25.04** - Latest Features & Performance Focus
 - Python 3.13.3 available in main repositories (latest features)
@@ -192,21 +124,15 @@ Can be run independently in Docker containers or existing VMs, but designed to w
 
 ### Package Management Strategy
 
-**Ubuntu 24.04 LTS - External Sources Approach**
-- **Node.js via nvm**: User-space installation, multiple versions, community best practices
-- **GitHub CLI**: Via official GitHub repository for latest features
-- **Python via system + uv**: System Python 3.12 + uv for fast package management
-
-**Ubuntu Server 25.04 - Native Packages Approach**  
+**Native Packages Approach**  
 - **Node.js via apt**: System-wide installation, faster setup, native Ubuntu packages
 - **GitHub CLI**: Via native Ubuntu repositories for better integration
 - **Python via system + uv**: System Python 3.13.3 + uv for fast package management
 
-**Common Strategy**
 - System Python + uv for 10-100x faster package installation than pip
 - Virtual environment support built-in
 - Compatible with existing requirements.txt workflows
-- Docker CE via official Docker repository (both distributions)
+- Docker CE via official Docker repository
 
 ### Security Architecture
 **Random Password Generation**
@@ -230,7 +156,7 @@ Can be run independently in Docker containers or existing VMs, but designed to w
 
 ### Docker Installation Strategy (Optional)
 **Official APT Repository Method**
-- Uses Docker's official GPG key and APT repository for Ubuntu 24.04
+- Uses Docker's official GPG key and APT repository for Ubuntu
 - Installs Docker CE, Docker CLI, containerd, and plugins
 - Docker Compose v2 installed as plugin (docker-compose-plugin)
 - Invoked as `docker compose` (space, not hyphen) - modern approach
@@ -249,7 +175,7 @@ Can be run independently in Docker containers or existing VMs, but designed to w
 ## Common Issues and Solutions
 
 ### Template not found
-**Problem**: "Ubuntu 24.04 template not found in Proxmox repository"
+**Problem**: "Ubuntu Server 25.04 template not found in Proxmox repository"
 
 **Solution**: 
 1. Check Proxmox repository configuration
@@ -280,9 +206,8 @@ Can be run independently in Docker containers or existing VMs, but designed to w
 # From inside the container
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | sudo bash -s -- --github-user yourusername
 
-# Or from Proxmox host
-pct push <CTID> container-setup.sh /tmp/setup.sh
-pct exec <CTID> -- bash /tmp/setup.sh --github-user yourusername
+# Or from Proxmox host (Phase 2)
+pct exec <CTID> -- su - dev -c "curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | bash"
 ```
 
 ### GitHub CLI Authentication
@@ -328,7 +253,7 @@ The separation of `proxmox-setup.sh` and `container-setup.sh` allows for:
 - **Container Creation**: 30-60 seconds
 - **Base System Update**: 1-2 minutes
 - **Python Installation**: 30 seconds
-- **Node.js via nvm**: 1 minute
+- **Node.js via apt**: 30 seconds
 - **Tool Installation**: 2-3 minutes
 - **Total Setup Time**: 5-7 minutes
 
@@ -353,8 +278,8 @@ When making changes, verify:
 - [ ] **Force Recreation**: `--force` flag properly recreates
 - [ ] **SSH Keys**: GitHub keys correctly fetched and installed
 - [ ] **Password Generation**: Unique 32-char passwords displayed
-- [ ] **Python Environment**: Python 3.12 and pip functional
-- [ ] **Node.js Environment**: nvm, node, and npm working
+- [ ] **Python Environment**: Python 3.13.3 and pip functional
+- [ ] **Node.js Environment**: node and npm working
 - [ ] **Claude Code CLI**: Installed and accessible globally
 - [ ] **uv Package Manager**: Fast Python package installation
 - [ ] **GitHub CLI**: Authentication and operations work
@@ -484,7 +409,7 @@ pct restore <NEW_CTID> /var/lib/vz/dump/vzdump-lxc-<CTID>-*.tar.zst
 pct exec <CTID> -- apt update && apt upgrade -y
 
 # Node.js update
-pct exec <CTID> -- su - dev -c "nvm install --lts && nvm alias default lts/*"
+pct exec <CTID> -- apt update && apt upgrade nodejs npm -y
 
 # Python packages update
 pct exec <CTID> -- su - dev -c "uv pip install --upgrade pip setuptools wheel"
@@ -492,7 +417,14 @@ pct exec <CTID> -- su - dev -c "uv pip install --upgrade pip setuptools wheel"
 
 ## Version History
 
-### v2.4 (Current)
+### v3.0 (Current)
+- Simplified to Ubuntu Server 25.04 only
+- Removed deprecated Ubuntu 24.04 scripts
+- Two-phase setup with enhanced security
+- Native package approach for Node.js and GitHub CLI
+- Dev user created in Phase 1 with immediate SSH access
+
+### v2.4
 - Added optional Docker CE and Docker Compose v2 support
 - Docker installed via official APT repository method (not get.docker.com)
 - Docker Compose v2 installed as plugin (docker-compose-plugin package)
@@ -547,10 +479,10 @@ pct exec <CTID> -- su - dev -c "uv pip install --upgrade pip setuptools wheel"
 
 ### Common User Requests & Solutions
 
-**"Make it work on Ubuntu 22.04"**
-- Requires changing Python installation method (PPA needed)
+**"Make it work on older Ubuntu versions"**
+- Would require significant changes to package installation methods
 - Template detection logic needs modification
-- Not recommended - breaks consistency guarantee
+- Not recommended - optimized for Ubuntu Server 25.04
 
 **"Add Docker to the container"**
 - Ensure nesting is enabled: `pct set <CTID> -features nesting=1`
@@ -558,11 +490,11 @@ pct exec <CTID> -- su - dev -c "uv pip install --upgrade pip setuptools wheel"
 - Add dev user to docker group
 
 **"Install specific Node.js version"**
-- Use nvm commands after setup: `nvm install 18.17.0`
-- Set as default: `nvm alias default 18.17.0`
+- Ubuntu 25.04 uses system-wide Node.js via apt
+- For multiple versions, consider using nvm post-setup
 
 **"Configure static IP"**
-- Post-setup configuration in `/etc/netplan/` (Ubuntu 24.04)
+- Post-setup configuration in `/etc/netplan/` (Ubuntu 25.04)
 - Restart networking after changes
 
 ### Script Modification Guidelines

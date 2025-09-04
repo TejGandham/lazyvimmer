@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Container Setup Script v2.4
-# Sets up Python 3.12, Node.js LTS, optional Docker, and development tools
-# Can be run inside any Ubuntu 24.04 container or VM
+# Container Setup Script v3.0 - Ubuntu Server 25.04 Edition (Two-Phase)  
+# Phase 2: Sets up Python 3.13.3, Node.js 20.18.1, optional Docker, and development tools
+# Assumes dev user already exists (created in Phase 1)
+# Uses native Ubuntu packages for faster, simpler installation
 
 # Color output
 RED='\033[0;31m'
@@ -22,6 +23,7 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 INSTALL_SSH="${INSTALL_SSH:-true}"
 INSTALL_DOCKER="${INSTALL_DOCKER:-false}"
+USER_PASSWORD="${USER_PASSWORD:-}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -29,6 +31,7 @@ while [[ $# -gt 0 ]]; do
         --user) SETUP_USER="$2"; shift 2 ;;
         --github-user) GITHUB_USERNAME="$2"; shift 2 ;;
         --github-token) GITHUB_TOKEN="$2"; shift 2 ;;
+        --user-password) USER_PASSWORD="$2"; shift 2 ;;
         --no-ssh) INSTALL_SSH="false"; shift ;;
         --docker) INSTALL_DOCKER="true"; shift ;;
         --help)
@@ -37,6 +40,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --user NAME         User to create (default: dev)"
             echo "  --github-user NAME  GitHub username for SSH keys"
             echo "  --github-token PAT  GitHub Personal Access Token for gh CLI authentication"
+            echo "  --user-password PWD Specific password for user (auto-generated if not provided)"
             echo "  --no-ssh           Skip SSH server installation"
             echo "  --docker           Install Docker CE and Docker Compose"
             exit 0
@@ -51,7 +55,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-log_info "Starting container setup..."
+log_info "Starting Ubuntu Server 25.04 container setup..."
 
 # Update system
 log_info "Updating system packages..."
@@ -87,8 +91,8 @@ update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-# Install Python 3.12
-log_info "Installing Python 3.12..."
+# Install Python 3.13.3 (native package in Ubuntu 25.04)
+log_info "Installing Python 3.13.3..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
     python3-pip \
@@ -99,26 +103,25 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
 PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
 log_info "Python installed: $PYTHON_VERSION"
 
-# Create user if it doesn't exist
+# Verify user exists (should be created in Phase 1)
 if ! id "$SETUP_USER" &>/dev/null; then
-    log_info "Creating user: $SETUP_USER"
-    useradd -m -s /bin/bash -G sudo "$SETUP_USER"
-    echo "$SETUP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SETUP_USER"
-    
-    # Generate random password
-    USER_PASSWORD=$(openssl rand -base64 12)
+    log_error "User $SETUP_USER does not exist! This should have been created in Phase 1."
+    log_error "Please run the proxmox-setup-ubuntu2504.sh script first."
+    exit 1
+fi
+
+log_info "User $SETUP_USER exists - continuing with development environment setup"
+
+# Ensure user has proper sudo access
+usermod -aG sudo "$SETUP_USER" 2>/dev/null || true
+echo "$SETUP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SETUP_USER"
+
+# Use provided password or indicate existing user
+if [ -n "$USER_PASSWORD" ]; then
     echo "$SETUP_USER:$USER_PASSWORD" | chpasswd
-    
-    # Save password for display later
-    echo "$USER_PASSWORD" > /tmp/user_password.txt
-    chmod 600 /tmp/user_password.txt
-else
-    log_info "User $SETUP_USER already exists"
     echo "existing" > /tmp/user_password.txt
-    
-    # Ensure user is in sudo group and has NOPASSWD access
-    usermod -aG sudo "$SETUP_USER" 2>/dev/null || true
-    echo "$SETUP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SETUP_USER"
+else
+    echo "existing" > /tmp/user_password.txt
 fi
 
 # Set user home directory
@@ -127,46 +130,13 @@ if [ "$SETUP_USER" = "root" ]; then
     USER_HOME="/root"
 fi
 
-# Install Node.js via nvm if not already installed
-if [ ! -d "$USER_HOME/.nvm" ]; then
-    log_info "Installing nvm and Node.js LTS..."
-    
-    # Download and install nvm
-    NVM_VERSION="v0.40.3"
-    curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | sudo -u "$SETUP_USER" bash
-    
-    # Source nvm and install Node.js LTS
-    sudo -u "$SETUP_USER" bash -c "
-        export NVM_DIR=\"$USER_HOME/.nvm\"
-        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
-        nvm install --lts
-        nvm use --lts
-        nvm alias default lts/*
-        node --version
-        npm --version
-    "
+# Install Node.js 20.18.1 and npm via apt (Ubuntu 25.04 native packages)
+if ! command -v node &>/dev/null; then
+    log_info "Installing Node.js 20.18.1 and npm via apt..."
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm
 else
-    log_info "nvm already installed, updating Node.js LTS..."
-    sudo -u "$SETUP_USER" bash -c "
-        export NVM_DIR=\"$USER_HOME/.nvm\"
-        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
-        nvm install --lts
-        nvm use --lts
-        nvm alias default lts/*
-        node --version
-        npm --version
-    "
-fi
-
-# Make nvm available in user's shell
-if ! grep -q "NVM_DIR" "$USER_HOME/.bashrc"; then
-    cat >> "$USER_HOME/.bashrc" << 'NVMEOF'
-
-# NVM configuration
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-NVMEOF
+    log_info "Node.js already installed, checking for updates..."
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade nodejs npm 2>/dev/null || true
 fi
 
 # Add locale settings to user's bashrc if not present
@@ -179,23 +149,19 @@ export LC_ALL=en_US.UTF-8
 LOCALEEOF
 fi
 
-log_info "Node.js LTS installed/updated via nvm"
+# Verify Node.js installation
+NODE_VERSION=$(node --version 2>/dev/null || echo "not found")
+NPM_VERSION=$(npm --version 2>/dev/null || echo "not found")
+log_info "Node.js installed: $NODE_VERSION"
+log_info "npm installed: $NPM_VERSION"
 
 # Install Claude Code CLI if not already installed
-if ! sudo -u "$SETUP_USER" bash -c "source $USER_HOME/.nvm/nvm.sh && which claude" &>/dev/null; then
+if ! command -v claude &>/dev/null; then
     log_info "Installing Claude Code CLI..."
-    sudo -u "$SETUP_USER" bash -c "
-        export NVM_DIR=\"$USER_HOME/.nvm\"
-        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
-        npm install -g @anthropic-ai/claude-code
-    "
+    npm install -g @anthropic-ai/claude-code
 else
     log_info "Claude Code CLI already installed, checking for updates..."
-    sudo -u "$SETUP_USER" bash -c "
-        export NVM_DIR=\"$USER_HOME/.nvm\"
-        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
-        npm update -g @anthropic-ai/claude-code
-    "
+    npm update -g @anthropic-ai/claude-code
 fi
 
 log_info "Claude Code CLI installed/updated"
@@ -220,51 +186,25 @@ fi
 
 log_info "uv installed/updated"
 
-# Setup SSH if requested
+# Verify SSH setup (already configured in Phase 1)
 if [ "$INSTALL_SSH" = "true" ]; then
-    log_info "Installing and configuring SSH server..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
+    log_info "SSH server and dev user access already configured in Phase 1"
     
-    # Configure SSH
-    sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-    sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-    
-    # Restart SSH service (Ubuntu uses 'ssh' not 'sshd')
-    systemctl restart ssh
-    systemctl enable ssh
-    
-    # Setup SSH directory for user
-    USER_HOME="/home/$SETUP_USER"
-    if [ "$SETUP_USER" = "root" ]; then
-        USER_HOME="/root"
-    fi
-    
-    mkdir -p "$USER_HOME/.ssh"
-    touch "$USER_HOME/.ssh/authorized_keys"
-    chmod 700 "$USER_HOME/.ssh"
-    chmod 600 "$USER_HOME/.ssh/authorized_keys"
-    
-    # Add GitHub SSH keys if username provided
+    # Add additional GitHub SSH keys if username provided and not already added
     if [ -n "$GITHUB_USERNAME" ]; then
-        log_info "Fetching SSH keys from GitHub user: $GITHUB_USERNAME"
+        log_info "Checking for additional SSH keys from GitHub user: $GITHUB_USERNAME"
         GITHUB_KEYS=$(curl -fsSL "https://github.com/${GITHUB_USERNAME}.keys" 2>/dev/null || true)
         if [ -n "$GITHUB_KEYS" ]; then
             # Check if keys are already present to avoid duplicates
             while IFS= read -r key; do
                 if ! grep -qF "$key" "$USER_HOME/.ssh/authorized_keys" 2>/dev/null; then
                     echo "$key" >> "$USER_HOME/.ssh/authorized_keys"
+                    log_info "Added new SSH key from GitHub"
                 fi
             done <<< "$GITHUB_KEYS"
-            log_info "GitHub SSH keys synchronized for $GITHUB_USERNAME"
-        else
-            log_warn "Could not fetch SSH keys from GitHub"
+            # Fix ownership
+            chown -R "$SETUP_USER:$SETUP_USER" "$USER_HOME/.ssh"
         fi
-    fi
-    
-    # Fix ownership
-    if [ "$SETUP_USER" != "root" ]; then
-        chown -R "$SETUP_USER:$SETUP_USER" "$USER_HOME/.ssh"
     fi
 fi
 
@@ -278,21 +218,41 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     iputils-ping \
     dnsutils
 
+# Install atuin (shell history tool) if not already installed
+if [ ! -f "$USER_HOME/.local/bin/atuin" ]; then
+    log_info "Installing atuin..."
+    sudo -u "$SETUP_USER" bash -c "curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh"
+else
+    log_info "atuin already installed"
+fi
+
+# Make atuin available in user's shell if not already configured
+if ! grep -q "atuin init bash" "$USER_HOME/.bashrc" 2>/dev/null; then
+    cat >> "$USER_HOME/.bashrc" << 'ATUINEOF'
+
+# atuin configuration
+if command -v atuin &> /dev/null; then
+    eval "$(atuin init bash)"
+fi
+ATUINEOF
+    chown "$SETUP_USER:$SETUP_USER" "$USER_HOME/.bashrc"
+    log_info "atuin shell integration added to .bashrc"
+fi
+
+log_info "atuin installed/configured"
+
 # Install GitHub CLI if not already installed
 if ! command -v gh &>/dev/null; then
     log_info "Installing GitHub CLI..."
-    (type -p wget >/dev/null || (apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install wget -y)) \
-	&& mkdir -p -m 755 /etc/apt/keyrings \
-	&& out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-	&& cat $out | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
-	&& chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-	&& mkdir -p -m 755 /etc/apt/sources.list.d \
-	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-	&& apt-get update \
-	&& DEBIAN_FRONTEND=noninteractive apt-get install gh -y
+    # Add GitHub CLI repository
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y gh
 else
     log_info "GitHub CLI already installed, checking for updates..."
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --only-upgrade gh -y 2>/dev/null || true
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade gh 2>/dev/null || true
 fi
 
 # Configure GitHub CLI authentication if token provided
@@ -355,7 +315,7 @@ if [ "$INSTALL_DOCKER" = "true" ]; then
     # Check if Docker is already installed
     if command -v docker &>/dev/null; then
         log_info "Docker is already installed, checking for updates..."
-        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --only-upgrade docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y 2>/dev/null || true
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || true
     else
         # Install prerequisites for Docker repository
         log_info "Installing Docker prerequisites..."
@@ -363,18 +323,15 @@ if [ "$INSTALL_DOCKER" = "true" ]; then
             apt-transport-https \
             ca-certificates \
             curl \
-            gnupg
+            gnupg \
+            lsb-release
         
         # Add Docker's official GPG key
-        log_info "Adding Docker GPG key..."
-        install -m 0755 -d /etc/apt/keyrings
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-        chmod a+r /etc/apt/keyrings/docker.asc
-        
-        # Add Docker repository for Ubuntu 24.04 (noble)
         log_info "Adding Docker repository..."
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" | \
-            tee /etc/apt/sources.list.d/docker.list > /dev/null
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        
+        # Add Docker repository
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
         
         # Update package index
         apt-get update
@@ -420,19 +377,19 @@ fi
 # Clean up
 log_info "Cleaning up..."
 apt-get autoremove -y
-apt-get clean
-rm -rf /var/lib/apt/lists/*
+apt-get autoclean
 
 # Summary
 echo ""
 echo "========================================="
-echo "Container Setup Complete!"
+echo "Ubuntu Server 25.04 Container Setup Complete!"
 echo "========================================="
 echo "Python: $(python3 --version)"
-echo "Node.js: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && node --version' 2>/dev/null || echo "via nvm")"
-echo "npm: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && npm --version' 2>/dev/null || echo "via nvm")"
-echo "Claude Code: $(sudo -u "$SETUP_USER" bash -c 'source ~/.nvm/nvm.sh && claude --version' 2>/dev/null || echo "installed")"
+echo "Node.js: $(node --version 2>/dev/null || echo "not found")"
+echo "npm: $(npm --version 2>/dev/null || echo "not found")"
+echo "Claude Code: $(claude --version 2>/dev/null || echo "installed")"
 echo "uv: $(sudo -u "$SETUP_USER" bash -c 'source ~/.bashrc && uv --version' 2>/dev/null || echo "installed")"
+echo "atuin: $(sudo -u "$SETUP_USER" bash -c '. ~/.bashrc && atuin --version 2>/dev/null' || echo "installed")"
 echo "GitHub CLI: $(gh --version 2>/dev/null | head -1 || echo "installed")"
 if [ -n "$GITHUB_TOKEN" ] && gh auth status &>/dev/null; then
     echo "GitHub CLI Auth: Configured"

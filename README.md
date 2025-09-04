@@ -2,14 +2,14 @@
 
 <div align="center">
 
-[![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS%2F25.04-E95420?style=flat&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
-[![Python](https://img.shields.io/badge/Python-3.12%2F3.13-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu_Server-25.04-E95420?style=flat&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
+[![Python](https://img.shields.io/badge/Python-3.13.3-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-LTS-339933?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Proxmox](https://img.shields.io/badge/Proxmox-VE-E57000?style=flat&logo=proxmox&logoColor=white)](https://www.proxmox.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compatible-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
 
 **Production-ready scripts for creating minimal development containers on Proxmox**  
-**Supports Ubuntu 24.04 LTS and Ubuntu Server 25.04 with modern Python and Node.js**
+**Using Ubuntu Server 25.04 with modern Python 3.13.3 and Node.js**
 
 </div>
 
@@ -24,10 +24,9 @@ Lazyvimmer provides idempotent, secure scripts for setting up development contai
 ## ✨ Key Features
 
 ### Core Components
-- 🐧 **Ubuntu 24.04 LTS** - Stable base with 5-year support (Python 3.12)
-- 🐧 **Ubuntu Server 25.04** - Latest interim release (Python 3.13.3, 9-month support)
-- 🐍 **Modern Python** - 3.12 (Ubuntu LTS) / 3.13.3 (Ubuntu 25.04)
-- 🟢 **Node.js LTS** - Latest stable via nvm (Ubuntu LTS) or native packages (Ubuntu 25.04)
+- 🐧 **Ubuntu Server 25.04** - Latest interim release "Plucky Puffin"
+- 🐍 **Python 3.13.3** - Latest stable Python with newest features
+- 🟢 **Node.js 20.18.1** - LTS version via native apt packages
 - 🤖 **Claude Code CLI** - Anthropic's official AI assistant CLI
 - 📦 **uv Package Manager** - Ultra-fast Python package management
 - 🔧 **GitHub CLI** - Full GitHub operations from command line
@@ -47,39 +46,36 @@ Lazyvimmer provides idempotent, secure scripts for setting up development contai
 ### Prerequisites
 - **For Proxmox**: Proxmox VE 7.0+ with internet access
 - **For Docker**: Docker Engine 20.10+ or Docker Desktop
-- **For Standalone**: Ubuntu 24.04 LTS or Ubuntu Server 25.04 system
+- **For Standalone**: Ubuntu Server 25.04 system
+
+### 🔨 Quick Utilities
+
+#### Create Git Patch from Staged Changes
+```bash
+# Create a patch file from your staged git changes
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/create_patch.sh | bash
+
+# Or with wget
+wget -qO- https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/create_patch.sh | bash
+
+# Or with wcurl (wget-like syntax for curl)
+wcurl https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/create_patch.sh | bash
+```
 
 ## 📖 Usage
 
-Choose your preferred Ubuntu distribution:
-
-### 🐧 **Ubuntu 24.04 LTS** - Stability & Long-term Support
-- **Best for**: Production environments, enterprise, 5-year support lifecycle
-- **Python**: 3.12 (mature, stable)
-- **Node.js**: via nvm (multiple versions)
-- **Packages**: APT with PPA support
-
-### 🐧 **Ubuntu Server 25.04** - Latest Features & Performance
-- **Best for**: Development environments, latest features, 9-month support cycle
-- **Python**: 3.13.3 (newest stable)
-- **Node.js**: 20.18.1 via native apt (faster installation)
-- **Packages**: APT 3.0 with improved dependency resolver
-
----
-
 ### 1️⃣ Proxmox Container Setup
 
-#### Ubuntu 24.04 LTS (Stable)
+> **Best for**: Development environments, latest features, cutting-edge Python
 
-> **Best for**: Production environments, team development servers, CI/CD runners
+**Two-phase setup for better control:**
 
-Run directly on your Proxmox host:
-
+**Phase 1** - Create container with SSH access:
 ```bash
 # Quick setup with defaults
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup.sh | bash
 
-# With custom options
+# With custom options  
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup.sh | bash -s -- \
   --name mydev \
   --memory 8192 \
@@ -87,16 +83,33 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
   --disk 50 \
   --github-user yourusername
 
-# With GitHub CLI authentication (recommended for development)
-export GITHUB_TOKEN="your_personal_access_token"
+# With Docker support
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup.sh | bash -s -- \
   --name mydev \
+  --github-user yourusername \
+  --docker
+```
+
+**Phase 2** - SSH into container and run setup:
+```bash
+# SSH into the container as dev user (get IP from Phase 1 output)
+ssh dev@<CONTAINER_IP>
+
+# Run the application setup script
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | bash -s -- \
+  --user dev \
+  --github-user yourusername
+
+# With GitHub CLI authentication
+GITHUB_TOKEN="your_token" \
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | bash -s -- \
+  --user dev \
   --github-user yourusername \
   --github-token "$GITHUB_TOKEN"
 
 # With Docker support
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup.sh | bash -s -- \
-  --name mydev \
+curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | bash -s -- \
+  --user dev \
   --github-user yourusername \
   --docker
 ```
@@ -114,75 +127,23 @@ curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-
 - `--docker` - Install Docker CE and Docker Compose v2
 - `--force` - Force recreate if container with same name exists
 
-#### Ubuntu Server 25.04 (Latest Features)
-
-> **Best for**: Development environments, latest features, cutting-edge Python
-
-**Two-phase setup for better control:**
-
-**Phase 1** - Create container with SSH access:
-```bash
-# Quick setup with defaults
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup-ubuntu2504.sh | bash
-
-# With custom options  
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup-ubuntu2504.sh | bash -s -- \
-  --name ubuntu2504-dev \
-  --memory 8192 \
-  --cores 4 \
-  --disk 50 \
-  --github-user yourusername
-
-# With Docker support
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/proxmox-setup-ubuntu2504.sh | bash -s -- \
-  --name ubuntu2504-dev \
-  --github-user yourusername \
-  --docker
-```
-
-**Phase 2** - SSH into container and run setup:
-```bash
-# SSH into the container as dev user (get IP from Phase 1 output)
-ssh dev@<CONTAINER_IP>
-
-# Run the application setup script
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | bash -s -- \
-  --user dev \
-  --github-user yourusername
-
-# With GitHub CLI authentication
-GITHUB_TOKEN="your_token" \
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | bash -s -- \
-  --user dev \
-  --github-user yourusername \
-  --github-token "$GITHUB_TOKEN"
-
-# With Docker support
-curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup-ubuntu2504.sh | bash -s -- \
-  --user dev \
-  --github-user yourusername \
-  --docker
-```
-
 **What you get:**
+- ✅ **Ubuntu Server 25.04** - Latest interim release with 9-month support
 - ✅ **Secure dev user** - Created in Phase 1 with GitHub SSH keys
 - ✅ **Direct SSH access** - No temporary root access needed
-- ✅ **Python 3.13.3** - Latest stable Python with newest features (Phase 2)
-- ✅ **Node.js 20.18.1** - Native apt package (faster installation, Phase 2)
+- ✅ **Python 3.13.3** - Latest stable Python with newest features
+- ✅ **Node.js 20.18.1** - Native apt package (faster installation)
 - ✅ **APT 3.0** - Improved dependency resolver and colorful output
 - ✅ **Two-phase setup** - Better control and security
-- ✅ **9-month support** - Until January 2026
 
 ### 2️⃣ Standalone Container Setup
 
 > **Best for**: Docker environments, existing VMs, cloud instances
 
-#### Ubuntu 24.04 LTS
-
-Run inside any Ubuntu 24.04 container:
+Run inside any Ubuntu Server 25.04 container:
 
 ```bash
-# Inside any Ubuntu 24.04 container
+# Inside any Ubuntu Server 25.04 container
 curl -fsSL https://raw.githubusercontent.com/TejGandham/lazyvimmer/main/container-setup.sh | sudo bash
 
 # With GitHub SSH keys
@@ -267,14 +228,12 @@ ssh dev@<container-ip>
 
 ### Node.js Development
 
-Node.js is managed via nvm for easy version switching:
+Node.js 20.18.1 is installed via native apt packages:
 
 ```bash
-# Version management
-nvm list                    # List installed versions
-nvm install --lts           # Install latest LTS
-nvm use lts/*              # Use latest LTS
-nvm alias default lts/*    # Set as default
+# Check version
+node --version             # Should show v20.18.1
+npm --version             # Check npm version
 
 # Package management
 npm init -y                # Initialize new project
@@ -288,7 +247,7 @@ npm install -g nodemon     # Auto-restart on changes
 
 ### Python Development
 
-Python 3.12 with uv for ultra-fast package management:
+Python 3.13.3 with uv for ultra-fast package management:
 
 ```bash
 # Using uv (recommended - 10-100x faster than pip)
@@ -460,7 +419,7 @@ services:
 
 ```dockerfile
 # Dockerfile
-FROM ubuntu:24.04
+FROM ubuntu:25.04
 COPY container-setup.sh /tmp/
 RUN bash /tmp/container-setup.sh --user dev --no-ssh
 USER dev
@@ -478,11 +437,11 @@ WORKDIR /home/dev
 # Update Proxmox template list
 pveam update
 
-# Verify Ubuntu 24.04 is available
-pveam available | grep ubuntu-24
+# Verify Ubuntu Server 25.04 is available
+pveam available | grep ubuntu-25
 
 # Manually download if needed
-pveam download local ubuntu-24.04-standard_24.04-2_amd64.tar.zst
+pveam download local ubuntu-25.04-standard_25.04-1_amd64.tar.zst
 ```
 </details>
 
@@ -505,15 +464,13 @@ pct exec <CTID> -- ufw status
 <summary><b>Node.js/npm not found</b></summary>
 
 ```bash
-# nvm is user-specific, switch to dev user
-su - dev
-
-# Source nvm
-source ~/.nvm/nvm.sh
-
-# Verify installation
-nvm list
+# Node.js is installed system-wide via apt
+# Check installation
+which node
 node --version
+
+# If not found, reinstall
+sudo apt update && sudo apt install nodejs npm -y
 ```
 </details>
 
@@ -572,8 +529,8 @@ shellcheck *.sh
 ## 📚 Additional Resources
 
 - [Proxmox VE Documentation](https://pve.proxmox.com/wiki/Main_Page)
-- [Ubuntu 24.04 LTS Release Notes](https://discourse.ubuntu.com/t/noble-numbat-release-notes/39890)
-- [Node Version Manager (nvm)](https://github.com/nvm-sh/nvm)
+- [Ubuntu Server 25.04 Release Notes](https://discourse.ubuntu.com/t/plucky-puffin-release-notes/)
+- [Node.js Documentation](https://nodejs.org/docs/)
 - [uv Python Package Manager](https://github.com/astral-sh/uv)
 - [Claude Code Documentation](https://docs.anthropic.com/claude-code/)
 - [GitHub CLI Manual](https://cli.github.com/manual/)
@@ -585,7 +542,7 @@ MIT License - See [LICENSE](LICENSE) file for details.
 ## 🙏 Acknowledgments
 
 - Proxmox team for excellent virtualization platform
-- Ubuntu team for stable LTS releases
+- Ubuntu team for innovative interim releases
 - Node.js and Python communities
 - Anthropic for Claude Code CLI
 - GitHub for gh CLI tool
