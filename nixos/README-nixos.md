@@ -28,7 +28,7 @@ For development environments and containers:
 nix develop
 
 # Or run directly from GitHub
-nix develop github:TejGandham/lazyvimmer
+nix develop github:TejGandham/lazyvimmer#nixos
 
 # Build NixOS container configuration
 nix build .#nixosConfigurations.devcontainer.config.system.build.toplevel
@@ -40,7 +40,7 @@ For full system installations:
 
 ```bash
 # Copy configuration
-sudo cp configuration.nix /etc/nixos/
+sudo cp nixos/configuration.nix /etc/nixos/
 
 # Apply configuration
 sudo nixos-rebuild switch
@@ -146,7 +146,7 @@ git clone https://github.com/TejGandham/lazyvimmer.git
 cd lazyvimmer
 
 # Enter development environment
-nix develop
+nix develop ./nixos
 
 # Verify tools
 python --version    # Python 3.13.x
@@ -158,7 +158,7 @@ gh --version        # GitHub CLI
 ### Container Development
 ```bash
 # Create development container
-sudo nixos-container create mydev --flake .#devcontainer
+sudo nixos-container create mydev --flake ./nixos#devcontainer
 
 # Start and enter
 sudo nixos-container start mydev
@@ -171,12 +171,12 @@ su - dev
 ### System Installation
 ```bash
 # For new NixOS systems
-sudo cp configuration.nix /etc/nixos/
+sudo cp nixos/configuration.nix /etc/nixos/
 sudo nixos-rebuild switch
 
 # For existing systems (import)
 # Add to /etc/nixos/configuration.nix:
-imports = [ ./path/to/configuration.nix ];
+imports = [ ./path/to/nixos/configuration.nix ];
 ```
 
 ## Customization
@@ -272,8 +272,8 @@ echo "ssh-rsa AAAA..." >> ~/.ssh/authorized_keys
 
 To migrate from Ubuntu container-setup.sh:
 
-1. **Environment**: Use `nix develop` for equivalent shell
-2. **System**: Use `configuration.nix` for equivalent system
+1. **Environment**: Use `nix develop ./nixos` for equivalent shell
+2. **System**: Use `nixos/configuration.nix` for equivalent system
 3. **Container**: Use flake container configuration
 4. **Docker**: Same commands work (`docker`, `docker compose`)
 5. **SSH**: Same key management, better declarative config
@@ -293,7 +293,7 @@ To migrate from Ubuntu container-setup.sh:
 To extend this configuration:
 
 1. Fork the repository
-2. Modify `flake.nix` or `configuration.nix`
+2. Modify `nixos/flake.nix` or `nixos/configuration.nix`
 3. Test with `nix flake check`
 4. Submit pull request
 
