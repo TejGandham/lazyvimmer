@@ -1,6 +1,6 @@
 # Debian Trixie + Nix Development Environment
 
-**Reproducible development container with Python 3.14, Node.js 22.20.0, and modern tooling powered by Nix**
+**Reproducible development container with Python 3.13, Node.js 22.20.0, and modern tooling powered by Nix**
 
 ## Overview
 
@@ -10,7 +10,7 @@ This setup provides a **pure Debian Trixie (Debian 13 GA)** development environm
 
 - **Base OS**: Debian Trixie (Debian 13 - GA/Stable)
 - **Package Manager**: Nix (single-user mode)
-- **Python**: 3.14 via Nix
+- **Python**: 3.13 via Nix
 - **Python Package Manager**: uv (10-100x faster than pip)
 - **Node.js**: 22.20.0 via Nix
 - **Claude Code CLI**: Anthropic's AI coding assistant
@@ -69,7 +69,7 @@ Once inside, all tools are immediately available:
 
 ```bash
 # Check versions
-python --version    # Python 3.14.0
+python --version    # Python 3.13.0
 node --version      # v22.20.0
 npm --version       # Latest npm
 uv --version        # uv package manager
@@ -243,24 +243,24 @@ docker-compose build --no-cache
 
 ### vs. Ubuntu Setup (from main lazyvimmer)
 
-| Feature | Ubuntu Script | Debian + Nix |
-|---------|--------------|--------------|
-| Base OS | Ubuntu 25.04 | Debian 13 Trixie |
-| Package Manager | apt + uv + nvm | Nix |
-| Reproducibility | Good | Excellent |
-| Tool Versions | System packages | Exact pins |
-| Rollback | No | Yes (Nix generations) |
-| Isolation | Limited | Complete |
+| Feature         | Ubuntu Script   | Debian + Nix          |
+| --------------- | --------------- | --------------------- |
+| Base OS         | Ubuntu 25.04    | Debian 13 Trixie      |
+| Package Manager | apt + uv + nvm  | Nix                   |
+| Reproducibility | Good            | Excellent             |
+| Tool Versions   | System packages | Exact pins            |
+| Rollback        | No              | Yes (Nix generations) |
+| Isolation       | Limited         | Complete              |
 
 ### vs. NixOS (from nixos/ directory)
 
-| Feature | NixOS | Debian + Nix |
-|---------|-------|--------------|
-| Base | NixOS | Debian Trixie |
-| Complexity | Higher | Lower |
-| Learning Curve | Steep | Moderate |
-| Flexibility | Very High | High |
-| Docker Support | Native | Standard |
+| Feature        | NixOS     | Debian + Nix  |
+| -------------- | --------- | ------------- |
+| Base           | NixOS     | Debian Trixie |
+| Complexity     | Higher    | Lower         |
+| Learning Curve | Steep     | Moderate      |
+| Flexibility    | Very High | High          |
+| Docker Support | Native    | Standard      |
 
 ## Troubleshooting
 
@@ -277,10 +277,12 @@ nix develop --rebuild
 ### Python/Node.js version incorrect
 
 Check the versions in `flake.nix`:
+
 - Python: `python314` or `python3`
 - Node.js: `nodejs_22` or `nodejs-22_x`
 
 Rebuild if changed:
+
 ```bash
 docker-compose build --no-cache
 ```
@@ -312,6 +314,7 @@ nix --version
 First build downloads Nix packages (~500MB). Subsequent builds are much faster due to Docker layer caching.
 
 To speed up:
+
 - Use Docker BuildKit: `DOCKER_BUILDKIT=1 docker-compose build`
 - Use Nix binary cache (automatic)
 - Increase Docker resources (CPU/Memory)
@@ -319,16 +322,19 @@ To speed up:
 ## Performance Notes
 
 ### Build Times
+
 - **First build**: 5-10 minutes (downloads Nix packages)
 - **Subsequent builds**: 30-60 seconds (layer cache)
 - **Nix environment activation**: <1 second
 
 ### Resource Usage
+
 - **Image size**: ~1.5-2GB (includes all tools)
 - **Idle memory**: ~100MB
 - **Active development**: 500MB-2GB (depends on workload)
 
 ### Optimization Tips
+
 - Mount workspace as volume (avoid copying large codebases)
 - Use `.dockerignore` to exclude unnecessary files
 - Enable Docker BuildKit for parallel builds
@@ -435,6 +441,7 @@ buildInputs = with pkgs; [
 ```
 
 Then rebuild:
+
 ```bash
 docker-compose build --no-cache
 ```
