@@ -1,0 +1,34 @@
+{
+  "name": "Debian Trixie + Nix Dev Environment",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devbox",
+  "workspaceFolder": "/workspace",
+
+  // Run commands after container is created
+  "postCreateCommand": "echo 'Dev container ready!'",
+
+  // Ensure bash uses login shell to source .bashrc
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "/bin/bash",
+      "args": ["-l"]
+    }
+  },
+
+  // VS Code extensions to install
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/nix/var/nix/profiles/default/bin/python"
+      }
+    }
+  }
+}

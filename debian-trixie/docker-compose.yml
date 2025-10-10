@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  devbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lazyvimmer-debian-trixie:latest
+    container_name: debian-trixie-dev
+
+    # Environment variables for GitHub integration
+    environment:
+      - GITHUB_USER=${GITHUB_USER}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+
+    # Volume mappings
+    volumes:
+      # Persistent workspace
+      - ./workspace:/workspace
+
+      # Optional: Mount SSH keys (read-only)
+      # Uncomment if you want to use your host SSH keys
+      # - ~/.ssh:/root/.ssh:ro
+
+      # Optional: Mount git config
+      # - ~/.gitconfig:/root/.gitconfig:ro
+
+    # Interactive terminal
+    stdin_open: true
+    tty: true
+
+    # Network configuration
+    networks:
+      - dev-network
+
+    # Resource limits (optional, adjust as needed)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 8G
+    #     reservations:
+    #       cpus: '2'
+    #       memory: 4G
+
+networks:
+  dev-network:
+    driver: bridge
